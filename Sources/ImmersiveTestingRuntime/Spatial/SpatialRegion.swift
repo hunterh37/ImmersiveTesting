@@ -5,21 +5,21 @@ import simd
 /// A named spatial volume for asserting containment of entities or points.
 ///
 /// Used with `XCTAssertEntity(_:within:)`, `XCTAssertAllEntities(_:in:within:)`, and
-/// `SceneInvariant.withinRegion(_:region:entities:)` to express "no zombie escapes the
+/// `SceneInvariant.withinRegion(_:region:entities:)` to express "no NPC escapes the
 /// arena" or "all pickups spawn within the play area" as a single reusable region value.
 ///
 /// ```swift
 /// let arena = SpatialRegion.sphere(center: .zero, radius: 10, name: "arena")
 ///
 /// // Point containment:
-/// XCTAssertTrue(arena.contains(zombie.position(relativeTo: nil)))
+/// XCTAssertTrue(arena.contains(npc.position(relativeTo: nil)))
 ///
 /// // Per-component assertion:
-/// XCTAssertAllEntities(ZombieTag.self, in: scene.root, within: arena)
+/// XCTAssertAllEntities(NPCTag.self, in: scene.root, within: arena)
 ///
 /// // Per-frame invariant (checked every tick via SceneInvariantSet):
-/// let inv = SceneInvariant.withinRegion("zombies in arena", region: arena) { root in
-///     root.entities(with: ZombieTag.self)
+/// let inv = SceneInvariant.withinRegion("npcs in arena", region: arena) { root in
+///     root.entities(with: NPCTag.self)
 /// }
 /// harness.tick(frames: 300, invariants: SceneInvariantSet { inv })
 /// ```

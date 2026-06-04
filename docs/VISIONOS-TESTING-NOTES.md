@@ -1,7 +1,7 @@
 # visionOS / RealityKit testing — gotchas & decisions
 
-Hard-won notes from building ImmersiveTesting and wiring it into a real visionOS game
-(ZombieShooter). These are the non-obvious things that cost time; bake them in so the next
+Hard-won notes from building ImmersiveTesting and wiring it into a real visionOS immersive
+app. These are the non-obvious things that cost time; bake them in so the next
 person (or agent) doesn't re-discover them.
 
 ---
@@ -18,7 +18,7 @@ enforced, so:
 - **Consumer test classes must be `@MainActor`:**
   ```swift
   @MainActor
-  final class SurvivalModeTests: XCTestCase { … }
+  final class SpatialTests: XCTestCase { … }
   ```
   Without it you get `main actor-isolated … can not be referenced from a nonisolated
   context` errors on every assertion call. This is expected and correct — not a bug to
@@ -36,8 +36,8 @@ of type 'Entity'"* once a block has more than one statement.
 
 ## 3. Name lookup: exact match wins before dotted-path parsing
 
-`TestScene`'s `subscript(_:)` splits on `.` to walk a path (`"gun.gunTip"`). But entities
-whose **own name contains a dot** (e.g. `"zombie_0.head"`) would be mis-parsed as a path
+`TestScene`'s `subscript(_:)` splits on `.` to walk a path (`"pointer.pointerTip"`). But entities
+whose **own name contains a dot** (e.g. `"npc_0.head"`) would be mis-parsed as a path
 and not found.
 
 Resolution order (see `TestScene.swift`):
@@ -50,7 +50,7 @@ Use `scene.entity(atPath:)` to **force** path semantics and ignore exact-name ma
 Regression test: `testLookupHandlesLiteralDotInName`.
 
 > Practical takeaway for fixtures: prefer plain child names (`"head"`, `"torso"`) and let
-> the path walk (`scene["zombie_0.head"]`) compose them. Reserve dotted *names* for cases
+> the path walk (`scene["npc_0.head"]`) compose them. Reserve dotted *names* for cases
 > where the entity genuinely needs a qualified identity.
 
 ## 4. ⚠️ The biggest one: hosting an immersive app in a unit-test bundle is fragile
@@ -58,7 +58,7 @@ Regression test: `testLookupHandlesLiteralDotInName`.
 A visionOS unit-test bundle is normally injected into a **TEST_HOST** app, which the
 simulator launches before running tests. For an immersive RealityKit app this is risky:
 
-- Launching ZombieShooter under test injection **crashed the simulator system shell**
+- Launching the app under test injection **crashed the simulator system shell**
   (`SurfBoard … probably crashed`, `FBSOpenApplicationServiceErrorDomain Code=5`), so the
   test bundle never loaded and `0` tests ran — even though the code compiled fine.
 - Immersive apps also pull in GameKit auth, ARKit/`ImmersiveSpace`, spatial-audio setup on
@@ -69,12 +69,12 @@ simulator launches before running tests. For an immersive RealityKit app this is
 | Mode | `project.yml` | Buys you | Costs |
 |------|---------------|----------|-------|
 | **Hostless logic-test** | no app-target dep, no `TEST_HOST` | rock-solid, fast, never launches the immersive app | **cannot** `@testable import` the game — package + RealityKit only |
-| **Hosted** | `TEST_HOST` + `BUNDLE_LOADER` set to the app, depend on the app target | `@testable import ZombieShooter` to drive real components/managers | risks the sim-shell launch crash above; slower; noisy logs |
+| **Hosted** | `TEST_HOST` + `BUNDLE_LOADER` set to the app, depend on the app target | `@testable import MyImmersiveApp` to drive real components/managers | risks the sim-shell launch crash above; slower; noisy logs |
 
-The package's *own* tests run hostless on macOS (fastest). For the game, the survival
+The package's *own* tests run hostless on macOS (fastest). For the app, the
 **scene-contract** suite works perfectly hostless because it only needs ImmersiveTesting +
 RealityKit. Switch to the hosted config **only** when a test genuinely needs to
-`@testable import` the game target — and expect to babysit simulator flakiness.
+`@testable import` the app target — and expect to babysit simulator flakiness.
 
 ### Required regardless: generate an Info.plist
 
@@ -93,17 +93,17 @@ GENERATE_INFOPLIST_FILE"*.
   simulator noise, not test failures. Grep for `Test Case .* (passed|failed)` and the
   final `TEST SUCCEEDED|FAILED` verdict.
 
-## 6. The scene-contract pattern (how the game suite is structured)
+## 6. The scene-contract pattern (how the suite is structured)
 
-Deep game state (singletons + live ARKit + a long-lived `Scene`) isn't unit-testable
+Deep app state (singletons + live ARKit + a long-lived `Scene`) isn't unit-testable
 without refactoring. Instead the suite tests the **scene-configuration contract**:
 
-- A fixture (`SurvivalScene.make(Config)`) builds the entity graph a given game state is
+- A fixture (`SceneFactory.make(Config)`) builds the entity graph a given app state is
   supposed to produce, using the ImmersiveTesting DSL and local stand-in components that
-  mirror the game's contracts (collision groups, tags, hierarchy).
+  mirror the app's contracts (collision groups, tags, hierarchy).
 - Tests assert that contract (presence, hierarchy, spatial bands, collision filters,
   state transitions) — fast, deterministic, headless.
-- **One documented swap point:** when `WaveManager`/`ImmersiveView` expose a buildable
+- **One documented swap point:** when `SceneManager`/`ImmersiveView` expose a buildable
   root, point `make` at the real builder and the same assertions keep working — at which
   point you flip to the hosted config (§4) for `@testable import`.
 
@@ -127,11 +127,11 @@ Full guide: **`DEPENDENCY-INJECTION.md`**. Hard-won points specific to this pack
   the package stops building on macOS CI. The *app* bridges ARKit in its `Live*` adapters.
 - **Additive only on `SystemHarness`.** `SystemStep` got an env-aware initializer plus a
   back-compat one that drops the env; `init`/`registerStep` env params are defaulted. This is
-  why all 49 pre-v1.2 tests still pass without edits — verify this when touching the harness.
+  why all pre-v1.2 tests still pass without edits — verify this when touching the harness.
 - **Determinism needs a real PRNG, not `Float.random`.** `SeededRandom` is SplitMix64 with a
   24-bit mantissa extraction (top bits → exact float in `[0,1)`). Same seed ⇒ byte-identical
   `SceneSnapshot` across runs/machines, so a "random layout" failure replays exactly.
 - **Flip order:** conform real managers via `Live*` adapters → extract a `SceneBuilder` →
   default its `env` param to a live environment (production unchanged) → repoint
-  `SurvivalScene.make` at the real builder and delete the stand-in components. Only the last
+  `SceneFactory.make` at the real builder and delete the stand-in components. Only the last
   step forces the hosted config (§4).

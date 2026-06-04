@@ -9,7 +9,7 @@ import RealityKit
 // a fake one and assert the resulting graph.
 //
 // This is the "swap point" the visionOS testing notes anticipate: once the app's
-// `WaveManager` (or a dedicated `SurvivalSceneBuilder`) conforms, a fixture stops
+// `SceneManager` (or a dedicated scene builder) conforms, a fixture stops
 // re-declaring stand-in components and calls the real builder — the assertions then guard
 // real construction logic.
 
@@ -17,7 +17,7 @@ import RealityKit
 /// injected environment.
 @MainActor
 public protocol SceneBuilder {
-    /// The per-build inputs (wave number, zombie count, mode flags, …).
+    /// The per-build inputs (round number, entity count, mode flags, …).
     associatedtype Config
 
     /// Produces the root entity for the scene in the given configuration. Must not touch

@@ -40,6 +40,10 @@ public func XCTAssertCollides(
 }
 
 /// Asserts two entities would NOT collide.
+///
+/// - Note: If either entity has no `CollisionComponent` this assertion passes trivially —
+///   a missing collider cannot participate in a collision. If you suspect a collider was
+///   accidentally omitted, pair this with `XCTAssertNoCollider` to make the absence explicit.
 @MainActor
 public func XCTAssertNoCollision(
     _ a: Entity, with b: Entity,
@@ -47,7 +51,7 @@ public func XCTAssertNoCollision(
 ) {
     guard let fa = a.components[CollisionComponent.self]?.filter,
           let fb = b.components[CollisionComponent.self]?.filter else {
-        return // no collider → no collision, trivially passes
+        return // no collider → no collision, trivially passes (see note above)
     }
     let aHitsB = fa.mask.rawValue & fb.group.rawValue != 0
     let bHitsA = fb.mask.rawValue & fa.group.rawValue != 0

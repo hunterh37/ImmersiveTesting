@@ -118,7 +118,6 @@ final class SystemHarnessTests: XCTestCase {
     }
 
     func testClockFrameMatchesTickCount() {
-        // Verifies the clock accurately tracks frames across multiple tick calls.
         let scene = TestScene { Entity("anchor") }
         let harness = SystemHarness(scene: scene)
         harness.registerStep("noop") { _, _ in }
@@ -159,27 +158,26 @@ final class SystemHarnessTests: XCTestCase {
 @MainActor
 final class SceneStateSpecTests: XCTestCase {
 
-    private func makeWaveScene(includeMenu: Bool = false, zombieCount: Int = 3) -> TestScene {
+    private func makeRoundScene(includeMenu: Bool = false, npcCount: Int = 3) -> TestScene {
         TestScene {
-            Entity("player").position(0, 1.6, 0).component(HealthComponent(lives: 3))
-            Entity("waveController").component(WaveComponent(index: 1, aliveCount: zombieCount))
-            for i in 0..<zombieCount {
-                Entity("zombie_\(i)").component(ZombieAIComponent(state: .chasing))
+            Entity("avatar").position(0, 1.6, 0).component(VitalComponent(lives: 3))
+            Entity("roundController").component(RoundComponent(index: 1, activeCount: npcCount))
+            for i in 0..<npcCount {
+                Entity("npc_\(i)").component(NPCAIComponent(state: .pursuing))
             }
             if includeMenu { Entity("mainMenuPanel") }
         }
     }
 
     func testSpecPassesOnCorrectScene() {
-        let scene = makeWaveScene()
+        let scene = makeRoundScene()
 
-        // Should produce zero violations
-        let spec = SceneStateSpec("waveActive") {
-            Requires(entityNamed: "player")
-            Requires(entityNamed: "waveController")
-            Requires(atLeast: 1, matching: .hasComponent(ZombieAIComponent.self))
+        let spec = SceneStateSpec("roundActive") {
+            Requires(entityNamed: "avatar")
+            Requires(entityNamed: "roundController")
+            Requires(atLeast: 1, matching: .hasComponent(NPCAIComponent.self))
             Forbids(entityNamed: "mainMenuPanel")
-            Expect(entityNamed: "player", "lives == 3") { $0.components[HealthComponent.self]?.lives == 3 }
+            Expect(entityNamed: "avatar", "lives == 3") { $0.components[VitalComponent.self]?.lives == 3 }
         }
 
         let violations = spec.violations(against: scene.root)
@@ -187,9 +185,9 @@ final class SceneStateSpecTests: XCTestCase {
     }
 
     func testSpecCatchesMissingEntity() {
-        let scene = TestScene { Entity("player") }
+        let scene = TestScene { Entity("avatar") }
 
-        let spec = SceneStateSpec("waveActive") {
+        let spec = SceneStateSpec("roundActive") {
             Requires(entityNamed: "objectiveAnchor")   // absent
         }
 
@@ -199,9 +197,9 @@ final class SceneStateSpecTests: XCTestCase {
     }
 
     func testSpecCatchesForbiddenEntity() {
-        let scene = makeWaveScene(includeMenu: true)
+        let scene = makeRoundScene(includeMenu: true)
 
-        let spec = SceneStateSpec("waveActive") {
+        let spec = SceneStateSpec("roundActive") {
             Forbids(entityNamed: "mainMenuPanel")
         }
 
@@ -210,23 +208,23 @@ final class SceneStateSpecTests: XCTestCase {
     }
 
     func testSpecCountingAtLeast() {
-        let scene = makeWaveScene(zombieCount: 0)  // no zombies
+        let scene = makeRoundScene(npcCount: 0)  // no NPCs
 
-        let spec = SceneStateSpec("needsZombies") {
-            Requires(atLeast: 1, matching: .hasComponent(ZombieAIComponent.self))
+        let spec = SceneStateSpec("needsNPCs") {
+            Requires(atLeast: 1, matching: .hasComponent(NPCAIComponent.self))
         }
 
         XCTAssertFalse(spec.violations(against: scene.root).isEmpty)
     }
 
     func testSpecCountingExactly() {
-        let scene = makeWaveScene(zombieCount: 3)
+        let scene = makeRoundScene(npcCount: 3)
 
-        let exactly3 = SceneStateSpec("exactly3Zombies") {
-            Requires(exactly: 3, matching: .hasComponent(ZombieAIComponent.self))
+        let exactly3 = SceneStateSpec("exactly3NPCs") {
+            Requires(exactly: 3, matching: .hasComponent(NPCAIComponent.self))
         }
-        let exactly2 = SceneStateSpec("exactly2Zombies") {
-            Requires(exactly: 2, matching: .hasComponent(ZombieAIComponent.self))
+        let exactly2 = SceneStateSpec("exactly2NPCs") {
+            Requires(exactly: 2, matching: .hasComponent(NPCAIComponent.self))
         }
 
         XCTAssertTrue(exactly3.violations(against: scene.root).isEmpty)
@@ -234,21 +232,21 @@ final class SceneStateSpecTests: XCTestCase {
     }
 
     func testSpecAtMost() {
-        let scene = makeWaveScene(zombieCount: 4)
+        let scene = makeRoundScene(npcCount: 4)
 
         let spec = SceneStateSpec("atMost3") {
-            Requires(atMost: 3, matching: .hasComponent(ZombieAIComponent.self))
+            Requires(atMost: 3, matching: .hasComponent(NPCAIComponent.self))
         }
 
         XCTAssertFalse(spec.violations(against: scene.root).isEmpty)
     }
 
     func testCustomExpectation() {
-        let scene = makeWaveScene()
+        let scene = makeRoundScene()
 
-        let spec = SceneStateSpec("playerHealthCheck") {
-            Expect("player.lives == 3") { root in
-                root.findEntity(named: "player")?.components[HealthComponent.self]?.lives == 3
+        let spec = SceneStateSpec("avatarVitalCheck") {
+            Expect("avatar.lives == 3") { root in
+                root.findEntity(named: "avatar")?.components[VitalComponent.self]?.lives == 3
             }
         }
 
@@ -267,15 +265,15 @@ final class SceneStateSpecTests: XCTestCase {
     }
 
     func testEntityPredicateHasComponent() {
-        let entity = Entity("zombie").component(ZombieAIComponent(state: .chasing))
-        let pred = EntityPredicate.hasComponent(ZombieAIComponent.self)
+        let entity = Entity("npc").component(NPCAIComponent(state: .pursuing))
+        let pred = EntityPredicate.hasComponent(NPCAIComponent.self)
         XCTAssertTrue(pred.matches(entity))
     }
 
     func testEntityPredicateNamed() {
-        let entity = Entity("player")
-        XCTAssertTrue(EntityPredicate.named("player").matches(entity))
-        XCTAssertFalse(EntityPredicate.named("zombie").matches(entity))
+        let entity = Entity("avatar")
+        XCTAssertTrue(EntityPredicate.named("avatar").matches(entity))
+        XCTAssertFalse(EntityPredicate.named("npc").matches(entity))
     }
 }
 
@@ -296,9 +294,9 @@ final class SceneInvariantTests: XCTestCase {
     }
 
     func testAlwaysPresentPassesWhenEntityExists() {
-        let scene = TestScene { Entity("player") }
+        let scene = TestScene { Entity("avatar") }
         let violations = SceneInvariantSet {
-            SceneInvariant.alwaysPresent(named: "player")
+            SceneInvariant.alwaysPresent(named: "avatar")
         }.violations(in: scene.root)
         XCTAssertTrue(violations.isEmpty)
     }
@@ -306,7 +304,7 @@ final class SceneInvariantTests: XCTestCase {
     func testAlwaysPresentFailsWhenEntityMissing() {
         let scene = TestScene { Entity("other") }
         let violations = SceneInvariantSet {
-            SceneInvariant.alwaysPresent(named: "player")
+            SceneInvariant.alwaysPresent(named: "avatar")
         }.violations(in: scene.root)
         XCTAssertFalse(violations.isEmpty)
     }
@@ -334,10 +332,10 @@ final class SceneInvariantTests: XCTestCase {
     func testMultipleInvariantsReportAllViolations() {
         let scene = TestScene {
             Entity("mainMenuPanel")
-            // player missing, menu present
+            // avatar missing, menu present
         }
         let violations = SceneInvariantSet {
-            SceneInvariant.alwaysPresent(named: "player")
+            SceneInvariant.alwaysPresent(named: "avatar")
             SceneInvariant.neverPresent(named: "mainMenuPanel")
         }.violations(in: scene.root)
         XCTAssertEqual(violations.count, 2)
@@ -352,11 +350,11 @@ final class SceneSnapshotTests: XCTestCase {
     private func makeScene() -> TestScene {
         TestScene {
             Entity("head").children {
-                Entity("gun")
+                Entity("pointer")
                     .position(0.1, -0.1, -0.2)
-                    .children { Entity("gunTip").position(0, 0, -0.15) }
+                    .children { Entity("pointerTip").position(0, 0, -0.15) }
             }
-            Entity("zombie")
+            Entity("npc")
                 .position(0, 0, -3)
                 .collider(group: .init(rawValue: 1 << 8), mask: .init(rawValue: 1 << 1))
         }
@@ -367,15 +365,15 @@ final class SceneSnapshotTests: XCTestCase {
         let snap = SceneSnapshot(scene.root)
         XCTAssertEqual(snap.root.name, "root")
         XCTAssertTrue(snap.root.children.contains { $0.name == "head" })
-        XCTAssertTrue(snap.root.children.contains { $0.name == "zombie" })
+        XCTAssertTrue(snap.root.children.contains { $0.name == "npc" })
     }
 
     func testSnapshotCapturesCollisionGroups() {
         let scene = makeScene()
         let snap = SceneSnapshot(scene.root)
-        let zombieNode = snap.root.children.first { $0.name == "zombie" }
-        XCTAssertNotNil(zombieNode?.collisionGroup)
-        XCTAssertEqual(zombieNode?.collisionGroup, 1 << 8)
+        let npcNode = snap.root.children.first { $0.name == "npc" }
+        XCTAssertNotNil(npcNode?.collisionGroup)
+        XCTAssertEqual(npcNode?.collisionGroup, 1 << 8)
     }
 
     func testTreeOutputContainsAllNames() {
@@ -384,9 +382,9 @@ final class SceneSnapshotTests: XCTestCase {
         let tree = snap.tree
         XCTAssertTrue(tree.contains("root"))
         XCTAssertTrue(tree.contains("head"))
-        XCTAssertTrue(tree.contains("gun"))
-        XCTAssertTrue(tree.contains("gunTip"))
-        XCTAssertTrue(tree.contains("zombie"))
+        XCTAssertTrue(tree.contains("pointer"))
+        XCTAssertTrue(tree.contains("pointerTip"))
+        XCTAssertTrue(tree.contains("npc"))
     }
 
     func testNamesOnlyOptionsOmitsPositionAndGroup() {
@@ -400,7 +398,7 @@ final class SceneSnapshotTests: XCTestCase {
     func testEntityCountIsCorrect() {
         let scene = makeScene()
         let snap = SceneSnapshot(scene.root)
-        // root + head + gun + gunTip + zombie = 5
+        // root + head + pointer + pointerTip + npc = 5
         XCTAssertEqual(snap.entityCount, 5)
     }
 
@@ -415,31 +413,31 @@ final class SceneSnapshotTests: XCTestCase {
         let scene = makeScene()
         let before = SceneSnapshot(scene.root)
 
-        scene.root.addChild(Entity("newEnemy"))
+        scene.root.addChild(Entity("newEntity"))
 
         let after = SceneSnapshot(scene.root)
         let diff = after.diff(from: before)
         XCTAssertNotNil(diff, "diff should detect added entity")
-        XCTAssertTrue(diff?.contains("newEnemy") ?? false)
+        XCTAssertTrue(diff?.contains("newEntity") ?? false)
     }
 
     func testDiffDetectsRemovedNode() {
         let scene = makeScene()
         let before = SceneSnapshot(scene.root)
 
-        scene["zombie"]?.removeFromParent()
+        scene["npc"]?.removeFromParent()
 
         let after = SceneSnapshot(scene.root)
         let diff = after.diff(from: before)
         XCTAssertNotNil(diff, "diff should detect removed entity")
-        XCTAssertTrue(diff?.contains("zombie") ?? false)
+        XCTAssertTrue(diff?.contains("npc") ?? false)
     }
 
     func testDiffDetectsMovedNode() {
         let scene = makeScene()
         let before = SceneSnapshot(scene.root)
 
-        scene["zombie"]?.position = SIMD3<Float>(10, 0, -3)  // moved far away
+        scene["npc"]?.position = SIMD3<Float>(10, 0, -3)  // moved far away
 
         let after = SceneSnapshot(scene.root)
         let diff = after.diff(from: before)
@@ -449,20 +447,20 @@ final class SceneSnapshotTests: XCTestCase {
     func testMaxDepthLimitsCapture() {
         let scene = makeScene()
         let snap = SceneSnapshot(scene.root, options: SnapshotOptions(maxDepth: 1))
-        // depth 0 = root, depth 1 = head + zombie. gunTip (depth 3) should be absent.
+        // depth 0 = root, depth 1 = head + npc. pointerTip (depth 3) should be absent.
         let tree = snap.tree
-        XCTAssertFalse(tree.contains("gunTip"), "maxDepth=1 should not capture gunTip at depth 3")
+        XCTAssertFalse(tree.contains("pointerTip"), "maxDepth=1 should not capture pointerTip at depth 3")
     }
 }
 
-// MARK: - EntityAssertionTests (new helpers)
+// MARK: - EntityAssertionTests
 
 @MainActor
 final class EntityAssertionTests: XCTestCase {
 
     func testAssertEntityName() {
-        let entity = Entity("gun")
-        XCTAssertEntityName(entity, "gun")
+        let entity = Entity("pointer")
+        XCTAssertEntityName(entity, "pointer")
     }
 
     func testAssertChildCount() {
@@ -509,9 +507,9 @@ final class EntityAssertionTests: XCTestCase {
     }
 
     func testAssertColliderMask() {
-        let zombie = CollisionGroup(rawValue: 1 << 8)
+        let npcGroup = CollisionGroup(rawValue: 1 << 8)
         let projectile = CollisionGroup(rawValue: 1 << 1)
-        let entity = Entity("hitbox").collider(group: zombie, mask: projectile)
+        let entity = Entity("hitbox").collider(group: npcGroup, mask: projectile)
         XCTAssertColliderMask(entity, contains: projectile)
     }
 

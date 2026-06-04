@@ -14,7 +14,7 @@ import simd
 ///
 /// ```swift
 /// let world = FakeWorldTracking()
-/// world.position = [5, 1.6, 0]      // player walked right
+/// world.position = [5, 1.6, 0]      // device moved right
 /// harness.tick(frames: 90)
 /// ```
 @MainActor
@@ -41,8 +41,8 @@ public final class FakeWorldTracking: WorldTrackingProviding {
 ///
 /// ```swift
 /// let fx = SpySceneEffects()
-/// viewModel.enterBossWave(effects: fx)
-/// XCTAssertEqual(fx.startedEffects.last, "wiremeshCyberGreen")
+/// viewModel.enterNextRound(effects: fx)
+/// XCTAssertEqual(fx.startedEffects.last, "dissolveEffect")
 /// ```
 @MainActor
 public final class SpySceneEffects: SceneEffectsProviding {
@@ -63,32 +63,32 @@ public final class SpySceneEffects: SceneEffectsProviding {
 
 // MARK: ScriptedHands
 
-/// A scriptable hand-input source. Drive a shot by closing the right pinch for a frame,
-/// then re-opening it, mirroring a real pinch gesture.
+/// A scriptable hand-input source. Drive a pinch interaction by closing the right hand
+/// for a frame, then re-opening it, mirroring a real pinch gesture.
 ///
 /// ```swift
 /// let hands = ScriptedHands()
 /// hands.rightPinchDistance = 0.05   // closed → below the 0.09 threshold
-/// harness.tick()                    // fire system spawns a projectile
-/// hands.rightPinchDistance = 0.20   // open → ready for the next shot
+/// harness.tick()                    // interaction system runs
+/// hands.rightPinchDistance = 0.20   // open → ready for the next interaction
 /// ```
 @MainActor
 public final class ScriptedHands: HandTrackingProviding {
     public var rightPinchDistance: Float
     public var leftPinchDistance: Float
-    public var gunTip: Transform
+    public var pointerTip: Transform
 
     public init(
-        rightPinchDistance: Float = 1.0,   // open by default (no accidental fire)
+        rightPinchDistance: Float = 1.0,   // open by default
         leftPinchDistance: Float = 1.0,
-        gunTip: Transform = Transform()
+        pointerTip: Transform = Transform()
     ) {
         self.rightPinchDistance = rightPinchDistance
         self.leftPinchDistance = leftPinchDistance
-        self.gunTip = gunTip
+        self.pointerTip = pointerTip
     }
 
-    public func gunTipTransform() -> Transform { gunTip }
+    public func pointerTipTransform() -> Transform { pointerTip }
 }
 
 // MARK: SeededRandom
@@ -99,7 +99,7 @@ public final class ScriptedHands: HandTrackingProviding {
 ///
 /// ```swift
 /// let rng = SeededRandom(seed: 42)
-/// let scene = SurvivalSceneBuilder().build(.init(), env: .fake(random: rng))
+/// let scene = SpawnSceneBuilder().build(.init(), env: .fake(random: rng))
 /// // identical every run
 /// ```
 @MainActor

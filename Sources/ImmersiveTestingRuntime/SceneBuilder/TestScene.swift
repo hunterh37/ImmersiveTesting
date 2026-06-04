@@ -21,10 +21,10 @@ public final class TestScene {
         self.root = root
     }
 
-    /// Look up an entity by exact name, or by dotted path (`"gun.gunTip"`).
+    /// Look up an entity by exact name, or by dotted path (`"pointer.pointerTip"`).
     ///
     /// An exact full-name match wins first, so entities whose own name contains a `.`
-    /// (e.g. `"zombie_0.head"`) are found directly. Only if no entity has that exact name
+    /// (e.g. `"npc_0.head"`) are found directly. Only if no entity has that exact name
     /// is the string treated as a dotted path walked child-by-child from the root.
     public subscript(path: String) -> Entity? {
         // 1. Exact name match anywhere in the subtree (handles names containing ".").
@@ -34,7 +34,7 @@ public final class TestScene {
         return entity(atPath: path)
     }
 
-    /// Resolves a dotted path (`"gun.gunTip"`) strictly by walking child names from the
+    /// Resolves a dotted path (`"pointer.pointerTip"`) strictly by walking child names from the
     /// root, ignoring exact-name matches. Use when a path segment could otherwise collide
     /// with a literal dotted name elsewhere in the graph.
     public func entity(atPath path: String) -> Entity? {
@@ -64,7 +64,7 @@ public enum EntityBuilder {
 
 @MainActor
 extension Entity {
-    /// Names an entity inline. `Entity("gun")`.
+    /// Names an entity inline. `Entity("pointer")`.
     public convenience init(_ name: String) {
         self.init()
         self.name = name

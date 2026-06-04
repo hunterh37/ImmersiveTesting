@@ -16,10 +16,10 @@ Each protocol isolates one runtime service a scene normally reaches for through 
 live ARKit. They're expressed purely in RealityKit / simd value types, so the package stays
 ARKit-free and runs on macOS CI.
 
-| Protocol | Replaces (in the game) | Package fake |
+| Protocol | Replaces (in the app) | Package fake |
 |---|---|---|
 | `WorldTrackingProviding` | `WorldTrackingManager.shared.getOriginFromDeviceTransform()` | `FakeWorldTracking` |
-| `SceneEffectsProviding` | `SceneReconstructionManager.shared` glitch calls | `SpySceneEffects` |
+| `SceneEffectsProviding` | `SceneReconstructionManager.shared` effect calls | `SpySceneEffects` |
 | `HandTrackingProviding` | `HandGestureModel` / ARKit hand pose | `ScriptedHands` |
 | `RandomProviding` | `Float.random` / `SystemRandomNumberGenerator` | `SeededRandom` |
 
@@ -30,7 +30,7 @@ let world = FakeWorldTracking()
 world.position = [5, 1.6, 0]          // teleport the simulated head
 
 let hands = ScriptedHands()
-hands.rightPinchDistance = 0.05       // closed → fires (below the 0.09 m rule)
+hands.rightPinchDistance = 0.05       // closed → triggers interaction (below 0.09 m)
 
 let fx = SpySceneEffects()            // records startEffect(named:) calls for assertions
 let rng = SeededRandom(seed: 42)      // reproducible "random" spawns
@@ -62,15 +62,15 @@ run headlessly. It becomes a pure function of `(Config, SceneEnvironment) -> Ent
 singleton access inside; read everything runtime-dependent from `env`.
 
 ```swift
-struct SurvivalSceneBuilder: SceneBuilder {
-    struct Config { var wave: Int; var zombieCount: Int }
+struct SpawnSceneBuilder: SceneBuilder {
+    struct Config { var round: Int; var npcCount: Int }
 
     func build(_ config: Config, env: any SceneEnvironment) -> Entity {
-        let root = Entity("survivalRoot")
-        let player = env.worldTracking.devicePosition()
-        for i in 0..<config.zombieCount {
-            let pos = player + env.random.unitVectorXZ() * 4.0
-            root.addChild(Entity("zombie_\(i)").position(pos) /* … components … */)
+        let root = Entity("sceneRoot")
+        let center = env.worldTracking.devicePosition()
+        for i in 0..<config.npcCount {
+            let pos = center + env.random.unitVectorXZ() * 4.0
+            root.addChild(Entity("npc_\(i)").position(pos) /* … components … */)
         }
         return root
     }
@@ -80,10 +80,10 @@ struct SurvivalSceneBuilder: SceneBuilder {
 `makeScene` wraps the result in a `TestScene` ready for assertions:
 
 ```swift
-let scene = SurvivalSceneBuilder().makeScene(.init(wave: 1, zombieCount: 3),
-                                             env: .fake(random: SeededRandom(seed: 1)))
-SceneStateSpec("waveActive") {
-    Requires(atLeast: 1, matching: .hasComponent(ZombieTag.self))
+let scene = SpawnSceneBuilder().makeScene(.init(round: 1, npcCount: 3),
+                                          env: .fake(random: SeededRandom(seed: 1)))
+SceneStateSpec("roundActive") {
+    Requires(atLeast: 1, matching: .hasComponent(NPCTag.self))
 }.assert(against: scene.root)
 ```
 
@@ -97,11 +97,11 @@ existing steps keep compiling.
 let harness = SystemHarness(scene: scene, environment: env)
 harness.registerStep("chase") { entities, dt, env in
     let target = env.worldTracking.devicePosition()       // scripted, deterministic
-    for e in entities where e.components[ZombieTag.self] != nil {
+    for e in entities where e.components[NPCTag.self] != nil {
         e.position += normalize(target - e.position) * dt
     }
 }
-world.position = [20, 0, 0]                                // move the player mid-sim
+world.position = [20, 0, 0]                                // move the device mid-sim
 harness.tick(frames: 90, invariants: SceneInvariantSet { SceneInvariant.noNaNTransforms })
 ```
 
@@ -109,11 +109,11 @@ harness.tick(frames: 90, invariants: SceneInvariantSet { SceneInvariant.noNaNTra
 
 ```swift
 @MainActor
-func testZombiesChaseMovingPlayer() {
+func testNPCsChaseMovingDevice() {
     let world = FakeWorldTracking()
     let env = CompositeSceneEnvironment(worldTracking: world, random: SeededRandom(seed: 42))
 
-    let scene = SurvivalSceneBuilder().makeScene(.init(wave: 1, zombieCount: 3), env: env)
+    let scene = SpawnSceneBuilder().makeScene(.init(round: 1, npcCount: 3), env: env)
     let harness = SystemHarness(scene: scene, environment: env)
     harness.registerStep("ai") { e, dt, env in MovingTargetSystem.step(e, dt, env) }
 
@@ -122,28 +122,28 @@ func testZombiesChaseMovingPlayer() {
         SceneInvariant.noNaNTransforms
     })
 
-    for z in scene.root.entities(with: ZombieTag.self) {
-        XCTAssertLessThan(z.worldPosition.x, 5)   // deterministic — same every run via the seed
+    for npc in scene.root.entities(with: NPCTag.self) {
+        XCTAssertLessThan(npc.worldPosition.x, 5)   // deterministic — same every run via the seed
     }
 }
 ```
 
 ---
 
-## Adopting this in ZombieShooter (migration)
+## Adopting this in your app (migration)
 
-DI only pays off once the game's singleton calls become injected calls. The migration is
+DI only pays off once the app's singleton calls become injected calls. The migration is
 mechanical and backward-compatible:
 
 1. **Conform the real managers** to the provider protocols via thin adapters (keep `.shared`
    for production): `LiveWorldTracking`, `LiveSceneEffects`, `LiveHands`.
-2. **Extract graph construction** out of `WaveManager` into a `SurvivalSceneBuilder: SceneBuilder`.
+2. **Extract graph construction** out of `SceneManager` into a `SpawnSceneBuilder: SceneBuilder`.
    Replace `WorldTrackingManager.shared.…` reads with `env.worldTracking.…` and
-   `SceneReconstructionManager.shared.startGlitchCycle()` with `env.sceneEffects.startEffect(named:)`.
+   `SceneReconstructionManager.shared.startEffect(named:)` with `env.sceneEffects.startEffect(named:)`.
 3. **Default the env parameter** to a live environment so production call sites don't change.
-4. **Flip the fixture:** `SurvivalScene.make` calls `SurvivalSceneBuilder().build(_, env:)`; delete
-   the duplicated stand-in components (`ZombieTag`/`PlayerTag`/`CG`) once the real components are
-   importable. This is the swap point described in `VISIONOS-TESTING-NOTES.md` §6.
+4. **Flip the fixture:** `SceneFactory.make` calls `SpawnSceneBuilder().build(_, env:)`; delete
+   the duplicated stand-in components once the real components are importable. This is the swap
+   point described in `VISIONOS-TESTING-NOTES.md` §6.
 
 Until step 4, hostless tests keep using the package's fakes against the contract; afterwards the
 same assertions guard the real builder.
@@ -151,10 +151,10 @@ same assertions guard the real builder.
 ## Design notes / blind spots handled
 
 - **Non-breaking harness:** `SystemStep` gained an env-aware initializer plus a back-compat one
-  that ignores the env; `SystemHarness.init` and `registerStep` env params are defaulted. All 49
+  that ignores the env; `SystemHarness.init` and `registerStep` env params are defaulted. All
   pre-existing tests pass unchanged.
 - **No second clock:** the environment deliberately does **not** own a clock — `SystemHarness`
-  remains the single time source (`FrameClock`). Mixing two clocks was the obvious foot-gun.
+  remains the single time source (`FrameClock`). Mixing two clocks is a foot-gun.
 - **ARKit stays out:** providers never reference `DeviceAnchor`/`HandAnchor`; the app bridges
   those in its adapters.
 - **Determinism:** `SeededRandom` is SplitMix64 with a 24-bit mantissa extraction — exact floats

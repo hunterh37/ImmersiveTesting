@@ -7,9 +7,9 @@ import ImmersiveTestingRuntime
 /// A named predicate that matches entities — used in quantified `SceneRequirement`s.
 ///
 /// ```swift
-/// EntityPredicate.hasComponent(ZombieAIComponent.self)
-/// EntityPredicate.named("player")
-/// EntityPredicate.satisfies("health > 0") { $0.components[HealthComponent.self]?.lives ?? 0 > 0 }
+/// EntityPredicate.hasComponent(NPCAIComponent.self)
+/// EntityPredicate.named("avatar")
+/// EntityPredicate.satisfies("lives > 0") { $0.components[VitalComponent.self]?.lives ?? 0 > 0 }
 /// ```
 public struct EntityPredicate {
     public let label: String
@@ -144,28 +144,28 @@ public struct SpecViolation {
 /// what the scene was missing, not just "assertion failed".
 ///
 /// ```swift
-/// let waveActive = SceneStateSpec("waveActive") {
+/// let roundActive = SceneStateSpec("roundActive") {
 ///     Requires(entityNamed: "objectiveAnchor")
-///     Requires(atLeast: 1, matching: .hasComponent(ZombieAIComponent.self))
-///     Requires(exactly: 1, matching: .named("player"))
+///     Requires(atLeast: 1, matching: .hasComponent(NPCAIComponent.self))
+///     Requires(exactly: 1, matching: .named("avatar"))
 ///     Forbids(entityNamed: "mainMenuPanel")
-///     Expect(entityNamed: "player", "lives == 3") { entity in
-///         entity.components[HealthComponent.self]?.lives == 3
+///     Expect(entityNamed: "avatar", "lives == 3") { entity in
+///         entity.components[VitalComponent.self]?.lives == 3
 ///     }
 /// }
 ///
-/// viewModel.startWave()
-/// waveActive.assert(against: scene.root)
+/// viewModel.startRound()
+/// roundActive.assert(against: scene.root)
 /// ```
 ///
 /// **Failure output:**
 /// ```
-/// SceneStateSpec "waveActive" failed (2 violations):
+/// SceneStateSpec "roundActive" failed (2 violations):
 ///   ✗ requires entity "objectiveAnchor"                — not found
 ///   ✗ forbids entity "mainMenuPanel"                  — present at /root/ui/mainMenuPanel
-///   ✓ at least 1 has ZombieAIComponent               — found 3
-///   ✓ exactly 1 named "player"                        — found 1
-///   ✓ player: lives == 3
+///   ✓ at least 1 has NPCAIComponent               — found 3
+///   ✓ exactly 1 named "avatar"                        — found 1
+///   ✓ avatar: lives == 3
 /// ```
 @MainActor
 public struct SceneStateSpec {
@@ -193,8 +193,8 @@ public struct SceneStateSpec {
             return SpecViolation(
                 passed: found,
                 description: found
-                    ? "requires entity \"\(name)\"                    — found"
-                    : "requires entity \"\(name)\"                    — not found"
+                    ? "requires entity \"\(name)\" — found"
+                    : "requires entity \"\(name)\" — not found"
             )
 
         case .entityAbsent(let name):
@@ -204,8 +204,8 @@ public struct SceneStateSpec {
             return SpecViolation(
                 passed: absent,
                 description: absent
-                    ? "forbids entity \"\(name)\"                     — absent ✓"
-                    : "forbids entity \"\(name)\"                     — present\(path.isEmpty ? "" : " at \(path)")"
+                    ? "forbids entity \"\(name)\" — absent ✓"
+                    : "forbids entity \"\(name)\" — present\(path.isEmpty ? "" : " at \(path)")"
             )
 
         case .atLeast(let count, let predicate):
@@ -213,7 +213,7 @@ public struct SceneStateSpec {
             let passed = found >= count
             return SpecViolation(
                 passed: passed,
-                description: "at least \(count) \(predicate.label)  — found \(found)"
+                description: "at least \(count) \(predicate.label) — found \(found)"
             )
 
         case .exactly(let count, let predicate):
@@ -221,7 +221,7 @@ public struct SceneStateSpec {
             let passed = found == count
             return SpecViolation(
                 passed: passed,
-                description: "exactly \(count) \(predicate.label)    — found \(found)"
+                description: "exactly \(count) \(predicate.label) — found \(found)"
             )
 
         case .atMost(let count, let predicate):
@@ -229,27 +229,27 @@ public struct SceneStateSpec {
             let passed = found <= count
             return SpecViolation(
                 passed: passed,
-                description: "at most \(count) \(predicate.label)    — found \(found)"
+                description: "at most \(count) \(predicate.label) — found \(found)"
             )
 
         case .entitySatisfies(let name, let description, let check):
             guard let entity = root.findEntity(named: name) else {
                 return SpecViolation(
                     passed: false,
-                    description: "\(description)                      — entity \"\(name)\" not found"
+                    description: "\(description) — entity \"\(name)\" not found"
                 )
             }
             let passed = check(entity)
             return SpecViolation(
                 passed: passed,
-                description: "\(description)                          — \(passed ? "✓" : "✗")"
+                description: "\(description) — \(passed ? "✓" : "✗")"
             )
 
         case .custom(let description, let check):
             let passed = check(root)
             return SpecViolation(
                 passed: passed,
-                description: "\(description)                          — \(passed ? "✓" : "✗")"
+                description: "\(description) — \(passed ? "✓" : "✗")"
             )
         }
     }

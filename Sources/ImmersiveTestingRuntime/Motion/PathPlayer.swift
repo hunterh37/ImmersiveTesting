@@ -43,54 +43,54 @@ public final class PathDrivenWorldTracking: WorldTrackingProviding {
 
 // MARK: - PathDrivenHands
 
-/// A `HandTrackingProviding` implementation that drives the gun-tip transform along a
-/// `MotionPath` — useful for simulating the player aiming across a sweep without having
-/// to update `ScriptedHands.gunTip` every tick.
+/// A `HandTrackingProviding` implementation that drives the pointer-tip transform along a
+/// `MotionPath` — useful for simulating a sweep or aim arc without having to update
+/// `ScriptedHands.pointerTip` every tick.
 ///
-/// Pinch distances remain fixed (open by default). Only the gun-tip follows the path.
+/// Pinch distances remain fixed (open by default). Only the pointer tip follows the path.
 ///
 /// ```swift
-/// // Simulate the player sweeping the gun left-to-right over 2 seconds.
+/// // Simulate a sweep left-to-right over 2 seconds.
 /// let sweepPath = MotionPath.arc(
 ///     center: [0, 1.5, -3], radius: 1.0,
 ///     startAngle: -.pi / 4, endAngle: .pi / 4,
 ///     height: 1.5, duration: 2.0
 /// )
 /// let clock = FrameClock()
-/// let hands = PathDrivenHands(gunPath: sweepPath, clock: clock)
+/// let hands = PathDrivenHands(pointerPath: sweepPath, clock: clock)
 /// let env   = CompositeSceneEnvironment(hands: hands)
 /// let harness = SystemHarness(scene: scene, clock: clock, environment: env)
 /// ```
 @MainActor
 public final class PathDrivenHands: HandTrackingProviding {
 
-    /// Thumb-to-index distance on the right (shooting) hand. Defaults to open (1 m).
+    /// Thumb-to-index distance on the right hand. Defaults to open (1 m).
     public var rightPinchDistance: Float
-    /// Thumb-to-index distance on the left (reload) hand. Defaults to open (1 m).
+    /// Thumb-to-index distance on the left hand. Defaults to open (1 m).
     public var leftPinchDistance: Float
 
-    private let gunPath: MotionPath
+    private let pointerPath: MotionPath
     private let clock: FrameClock
 
     /// - Parameters:
-    ///   - gunPath: The path the gun tip follows over time.
+    ///   - pointerPath: The path the pointer tip follows over time.
     ///   - clock: Shared simulation clock — must be the same instance as the harness uses.
-    ///   - rightPinchDistance: Starting right-hand pinch distance. Mutate to trigger shots.
-    ///   - leftPinchDistance: Starting left-hand pinch distance. Mutate to trigger reloads.
+    ///   - rightPinchDistance: Starting right-hand pinch distance. Mutate to trigger interactions.
+    ///   - leftPinchDistance: Starting left-hand pinch distance.
     public init(
-        gunPath: MotionPath,
+        pointerPath: MotionPath,
         clock: FrameClock,
         rightPinchDistance: Float = 1.0,
         leftPinchDistance: Float = 1.0
     ) {
-        self.gunPath = gunPath
+        self.pointerPath = pointerPath
         self.clock = clock
         self.rightPinchDistance = rightPinchDistance
         self.leftPinchDistance = leftPinchDistance
     }
 
-    public func gunTipTransform() -> Transform {
-        gunPath.transform(at: Float(clock.time))
+    public func pointerTipTransform() -> Transform {
+        pointerPath.transform(at: Float(clock.time))
     }
 }
 
@@ -103,15 +103,15 @@ public final class PathDrivenHands: HandTrackingProviding {
 /// trajectory — ideal for testing systems that react to moving targets.
 ///
 /// ```swift
-/// let chaseRoute = MotionPath.waypoints(
+/// let patrolRoute = MotionPath.waypoints(
 ///     [[0,0,0], [5,0,0], [5,0,5], [0,0,5]], duration: 4.0
 /// )
 /// let clock = FrameClock()
-/// let driver = EntityPathDriver(entity: zombie, path: chaseRoute, clock: clock)
+/// let driver = EntityPathDriver(entity: npc, path: patrolRoute, clock: clock)
 /// let harness = SystemHarness(scene: scene, clock: clock)
-/// harness.register(driver.asStep())   // zombie moves on the path every tick
+/// harness.register(driver.asStep())   // npc moves on the path every tick
 ///
-/// let recorder = PathRecorder(entity: player, clock: clock)
+/// let recorder = PathRecorder(entity: avatar, clock: clock)
 /// harness.register(recorder.asStep())
 ///
 /// harness.tick(frames: 360)   // 4 seconds

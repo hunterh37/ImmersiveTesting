@@ -64,9 +64,9 @@ public final class SystemHarness {
     ///
     /// ```swift
     /// harness.registerStep("chase") { entities, dt, env in
-    ///     let player = env.worldTracking.devicePosition()
-    ///     for e in entities where e.components[ZombieTag.self] != nil {
-    ///         e.position += normalize(player - e.position) * dt
+    ///     let target = env.worldTracking.devicePosition()
+    ///     for e in entities where e.components[NPCTag.self] != nil {
+    ///         e.position += normalize(target - e.position) * dt
     ///     }
     /// }
     /// ```

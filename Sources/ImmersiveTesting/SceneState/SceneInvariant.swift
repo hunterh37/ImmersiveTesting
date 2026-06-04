@@ -40,8 +40,8 @@ public struct SceneInvariant: @unchecked Sendable {
 ///     SceneInvariant("projectile cap ≤ 50") { root in
 ///         root.entities(with: ProjectileComponent.self).count <= 50
 ///     }
-///     SceneInvariant("player never below floor") { root in
-///         (root.findEntity(named: "player")?.worldPosition.y ?? 0) > -0.1
+///     SceneInvariant("avatar never below floor") { root in
+///         (root.findEntity(named: "avatar")?.worldPosition.y ?? 0) > -0.1
 ///     }
 /// }
 ///

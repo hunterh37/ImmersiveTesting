@@ -3,10 +3,10 @@ import RealityKit
 // Shared component stubs used across Tier1Tests and Tier2Tests.
 // Declared `internal` (module-level) so both files can use them without redeclaration.
 
-struct HealthComponent: Component { var lives: Int }
+struct VitalComponent: Component { var lives: Int }
 
-struct ZombieAIComponent: Component {
-    enum State { case idle, chasing, dead }
+struct NPCAIComponent: Component {
+    enum State { case idle, pursuing, inactive }
     var state: State
     var health: Float = 100
 }
@@ -16,6 +16,6 @@ struct ProjectileComponent: Component {
     var hitRegistered: Bool = false
 }
 
-struct AmmoPickupComponent: Component { var rounds: Int }
+struct PickupComponent: Component { var quantity: Int }
 
-struct WaveComponent: Component { var index: Int; var aliveCount: Int }
+struct RoundComponent: Component { var index: Int; var activeCount: Int }

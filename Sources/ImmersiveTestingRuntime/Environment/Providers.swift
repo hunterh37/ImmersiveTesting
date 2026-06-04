@@ -44,23 +44,22 @@ public protocol SceneEffectsProviding: AnyObject {
 
 // MARK: HandTrackingProviding
 
-/// Supplies hand-derived inputs the gameplay reads each frame. Production adapter wraps the
-/// app's `HandGestureModel` / ARKit hand tracking; the fake lets tests script pinches.
+/// Supplies hand-derived inputs a scene reads each frame. Production adapter wraps the
+/// app's hand gesture model / ARKit hand tracking; the fake lets tests script pinches.
 @MainActor
 public protocol HandTrackingProviding {
-    /// Thumb-to-index distance on the right (shooting) hand, in metres.
+    /// Thumb-to-index distance on the right hand, in metres.
     var rightPinchDistance: Float { get }
 
-    /// Thumb-to-index distance on the left (reload) hand, in metres.
+    /// Thumb-to-index distance on the left hand, in metres.
     var leftPinchDistance: Float { get }
 
-    /// World transform of the gun tip where projectiles spawn.
-    func gunTipTransform() -> Transform
+    /// World transform of the pointer tip (the origin from which interactions or objects spawn).
+    func pointerTipTransform() -> Transform
 }
 
 public extension HandTrackingProviding {
-    /// Whether the right hand is pinched past the shooting threshold (matches the game's
-    /// `< 0.09 m` rule by default).
+    /// Whether the right hand is pinched past `threshold` (default 0.09 m).
     func isRightPinching(threshold: Float = 0.09) -> Bool { rightPinchDistance < threshold }
 
     /// Whether the left hand is pinched past `threshold`.
@@ -86,8 +85,8 @@ public extension RandomProviding {
     /// A random angle in `[0, 2π)`.
     func angle() -> Float { next() * 2 * .pi }
 
-    /// A unit vector on the XZ plane (ground ring) — handy for ringing zombies around the
-    /// player at a fixed radius.
+    /// A unit vector on the XZ plane (ground ring) — handy for ringing entities around the
+    /// device position at a fixed radius.
     func unitVectorXZ() -> SIMD3<Float> {
         let a = angle()
         return SIMD3(cos(a), 0, sin(a))

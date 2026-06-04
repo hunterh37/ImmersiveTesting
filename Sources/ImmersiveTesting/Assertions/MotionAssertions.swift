@@ -167,7 +167,7 @@ public func XCTAssertReachesPosition(
 ///
 /// ```swift
 /// let arena = SpatialRegion.sphere(center: .zero, radius: 10, name: "arena")
-/// XCTAssertEntity(zombie, within: arena)
+/// XCTAssertEntity(npc, within: arena)
 /// ```
 @MainActor
 public func XCTAssertEntity(
@@ -189,7 +189,7 @@ public func XCTAssertEntity(
 ///
 /// ```swift
 /// let spawnZone = SpatialRegion.cylinder(center: .zero, radius: 8, name: "spawn zone")
-/// XCTAssertAllEntities(ZombieComponent.self, in: scene.root, within: spawnZone)
+/// XCTAssertAllEntities(NPCComponent.self, in: scene.root, within: spawnZone)
 /// ```
 @MainActor
 public func XCTAssertAllEntities<C: Component>(
@@ -215,8 +215,8 @@ extension SceneInvariant {
     /// ```swift
     /// let arena = SpatialRegion.sphere(center: .zero, radius: 10, name: "arena")
     /// let invariants = SceneInvariantSet {
-    ///     SceneInvariant.withinRegion("zombies in arena", region: arena) { root in
-    ///         root.entities(with: ZombieComponent.self)
+    ///     SceneInvariant.withinRegion("npcs in arena", region: arena) { root in
+    ///         root.entities(with: NPCComponent.self)
     ///     }
     /// }
     /// harness.tick(frames: 300, invariants: invariants)

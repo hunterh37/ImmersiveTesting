@@ -20,7 +20,9 @@ extension Entity {
     /// World-space translation (relative to nil).
     public var worldPosition: SIMD3<Float> { position(relativeTo: nil) }
 
-    /// World-space uniform scale (mean of the three axes).
+    /// World-space scale, returned as the mean of the three axes.
+    /// Only accurate when the entity's scale is actually uniform; on non-uniform scale this
+    /// yields a misleading average. Validate uniformity first with `XCTAssertUniformScale`.
     public var worldScale: Float {
         let s = scale(relativeTo: nil)
         return (s.x + s.y + s.z) / 3

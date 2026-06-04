@@ -53,7 +53,6 @@ final class ProviderFakeTests: XCTestCase {
     func testSeededRandomDiffersBySeed() {
         let a = SeededRandom(seed: 1)
         let b = SeededRandom(seed: 2)
-        // Extremely unlikely to match across 10 draws if seeds differ.
         var anyDifferent = false
         for _ in 0..<10 where a.next() != b.next() { anyDifferent = true }
         XCTAssertTrue(anyDifferent)
@@ -175,7 +174,7 @@ final class HarnessEnvironmentTests: XCTestCase {
         let env = CompositeSceneEnvironment(worldTracking: world)
 
         let scene = TestScene {
-            Entity("zombie").position(0, 0, 0).component(ChaserTag(speed: 2))
+            Entity("npc").position(0, 0, 0).component(ChaserTag(speed: 2))
         }
         let harness = SystemHarness(scene: scene, environment: env)
 
@@ -191,15 +190,15 @@ final class HarnessEnvironmentTests: XCTestCase {
             }
         }
 
-        let zombie = scene["zombie"]!
+        let npc = scene["npc"]!
         harness.tick(frames: 45)
-        let after = zombie.position.x
-        XCTAssertGreaterThan(after, 0, "zombie should have moved toward +x device pose")
+        let after = npc.position.x
+        XCTAssertGreaterThan(after, 0, "npc should have moved toward +x device pose")
 
-        // Teleport the device; the same step must now steer the zombie further along.
+        // Teleport the device; the same step must now steer the npc further along.
         world.position = [20, 0, 0]
         harness.tick(frames: 45)
-        XCTAssertGreaterThan(zombie.position.x, after, "zombie keeps chasing the moved pose")
+        XCTAssertGreaterThan(npc.position.x, after, "npc keeps chasing the moved pose")
     }
 
     func testDefaultHarnessEnvironmentExists() {

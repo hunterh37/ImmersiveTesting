@@ -35,16 +35,16 @@ let world = FakeWorldTracking()
 let env = CompositeSceneEnvironment(worldTracking: world, random: SeededRandom(seed: 42))
 
 // A production builder conforms to SceneBuilder → callable in tests with a fake env:
-let scene = SurvivalSceneBuilder().makeScene(.init(wave: 1, zombieCount: 3), env: env)
+let scene = SpawnSceneBuilder().makeScene(.init(round: 1, npcCount: 3), env: env)
 
 let harness = SystemHarness(scene: scene, environment: env)
 harness.registerStep("chase") { entities, dt, env in
-    let player = env.worldTracking.devicePosition()        // scripted, deterministic
-    for e in entities where e.components[ZombieTag.self] != nil {
-        e.position += normalize(player - e.position) * dt
+    let target = env.worldTracking.devicePosition()        // scripted, deterministic
+    for e in entities where e.components[NPCTag.self] != nil {
+        e.position += normalize(target - e.position) * dt
     }
 }
-world.position = [20, 0, 0]                                 // move the player mid-simulation
+world.position = [20, 0, 0]                                 // move the device mid-simulation
 harness.tick(frames: 90, invariants: SceneInvariantSet { SceneInvariant.noNaNTransforms })
 ```
 
@@ -52,7 +52,7 @@ harness.tick(frames: 90, invariants: SceneInvariantSet { SceneInvariant.noNaNTra
 |------|---------|
 | `WorldTrackingProviding` / `FakeWorldTracking` | Device pose; replaces `WorldTrackingManager.shared` |
 | `SceneEffectsProviding` / `SpySceneEffects` | Scene-effect calls; records for assertions |
-| `HandTrackingProviding` / `ScriptedHands` | Pinch distances + gun-tip pose |
+| `HandTrackingProviding` / `ScriptedHands` | Pinch distances + pointer-tip pose |
 | `RandomProviding` / `SeededRandom` | Deterministic, seedable RNG (SplitMix64) |
 | `SceneEnvironment` / `CompositeSceneEnvironment` | Injection container (all-fakes by default) |
 | `SceneBuilder` | `build(_ config:, env:) -> Entity`; `makeScene(…)` wraps in a `TestScene` |
@@ -65,28 +65,28 @@ harness.tick(frames: 90, invariants: SceneInvariantSet { SceneInvariant.noNaNTra
 
 ### SceneStateSpec — declarative scene-state assertions
 
-The headline feature. Describe what the entity graph *must* look like in a given game state,
+The headline feature. Describe what the entity graph *must* look like in a given app state,
 then assert it after the state transition. One spec call gives you a rich pass/fail summary
 listing every requirement, not just the first failure.
 
 ```swift
 @MainActor
-final class WaveTests: XCTestCase {
+final class RoundTests: XCTestCase {
 
-    func testStartingWaveConfiguresScene() {
+    func testStartingRoundConfiguresScene() {
         let scene = TestScene {
-            Entity("player").position(0, 1.6, 0).component(HealthComponent(lives: 3))
+            Entity("avatar").position(0, 1.6, 0).component(VitalComponent(lives: 3))
         }
         let vm = ViewModel(scene: scene.root)
-        vm.startWave()
+        vm.startRound()
 
-        SceneStateSpec("waveActive") {
+        SceneStateSpec("roundActive") {
             Requires(entityNamed: "objectiveAnchor")
-            Requires(atLeast: 1, matching: .hasComponent(ZombieAIComponent.self))
-            Requires(exactly: 1, matching: .named("player"))
+            Requires(atLeast: 1, matching: .hasComponent(NPCAIComponent.self))
+            Requires(exactly: 1, matching: .named("avatar"))
             Forbids(entityNamed: "mainMenuPanel")
-            Expect(entityNamed: "player", "lives == 3") { entity in
-                entity.components[HealthComponent.self]?.lives == 3
+            Expect(entityNamed: "avatar", "lives == 3") { entity in
+                entity.components[VitalComponent.self]?.lives == 3
             }
         }.assert(against: scene.root)
     }
@@ -95,12 +95,12 @@ final class WaveTests: XCTestCase {
 
 **Failure output:**
 ```
-SceneStateSpec "waveActive" failed (2 violations):
+SceneStateSpec "roundActive" failed (2 violations):
   ✗ requires entity "objectiveAnchor"                    — not found
   ✗ forbids entity "mainMenuPanel"                      — present at /root/ui/mainMenuPanel
-  ✓ at least 1 has ZombieAIComponent                   — found 3
-  ✓ exactly 1 named "player"                            — found 1
-  ✓ player: lives == 3                                  — ✓
+  ✓ at least 1 has NPCAIComponent                      — found 3
+  ✓ exactly 1 named "avatar"                            — found 1
+  ✓ avatar: lives == 3                                  — ✓
 ```
 
 ### SceneInvariantSet — frame-level invariants
@@ -111,11 +111,11 @@ on the exact frame a property breaks, not after the run completes.
 ```swift
 let invariants = SceneInvariantSet {
     SceneInvariant.noNaNTransforms
-    SceneInvariant.alwaysPresent(named: "player")
+    SceneInvariant.alwaysPresent(named: "avatar")
     SceneInvariant.neverPresent(named: "mainMenuPanel")
     SceneInvariant.cap(ProjectileComponent.self, atMost: 50)
-    SceneInvariant("player never below floor") { root in
-        (root.findEntity(named: "player")?.worldPosition.y ?? 0) > -0.1
+    SceneInvariant("avatar never below floor") { root in
+        (root.findEntity(named: "avatar")?.worldPosition.y ?? 0) > -0.1
     }
 }
 
@@ -181,8 +181,8 @@ XCTAssertSnapshotsMatch(after, baseline: before)   // fails with diff on change
 print(before.tree)
 /*
  root
- ├─ player  pos(0.00, 1.60, 0.00)
- └─ zombie  pos(0.00, 0.00, -3.00)  group:8192
+ ├─ avatar  pos(0.00, 1.60, 0.00)
+ └─ npc     pos(0.00, 0.00, -3.00)  group:8192
     ├─ head  pos(0.00, 1.70, -3.00)  group:524288
     └─ torso  pos(0.00, 1.10, -3.00)  group:524288
 */
@@ -203,7 +203,7 @@ print(before.tree)
 | Hierarchy | `XCTAssertChild(of:)`, `XCTAssertDescendant(of:)`, `XCTAssertEntityExists(named:)`, `XCTAssertNoEntity(named:)` |
 | Collision | `XCTAssertColliderGroup(contains:)`, `XCTAssertColliderMask(contains:)`, `XCTAssertCollides(with:)`, `XCTAssertNoCollision(with:)`, `XCTAssertNoCollider(_:)` |
 
-Angle tolerances use `Angle` (`.degrees(15)` / `.radians(_:)`) — no raw-radian foot-guns.
+Angle tolerances use `Angle` (`.degrees(15)` / `.radians(_:)`) — no raw-radian pitfalls.
 `XCTAssertCollides` reads `CollisionComponent.filter` (group ⊗ mask) so it verifies your
 collision-group registry contract without running physics.
 

@@ -10,8 +10,8 @@ import simd
 /// already run), then inspect `recordedPath`, `samples`, or use the motion assertions:
 ///
 /// ```swift
-/// let zombie = scene["zombie"]!
-/// let recorder = PathRecorder(entity: zombie, clock: harness.clock)
+/// let npc = scene["npc"]!
+/// let recorder = PathRecorder(entity: npc, clock: harness.clock)
 /// harness.register(recorder.asStep())          // records after every tick
 ///
 /// harness.tick(frames: 270)                    // 3 seconds at 90 Hz

@@ -60,9 +60,9 @@ public struct SnapshotNode: Equatable {
 /// /*
 ///  root
 ///  ├─ head
-///  │  └─ gun  pos(0.10, -0.10, -0.20)
-///  │     └─ gunTip  pos(0.00, 0.00, -0.15)
-///  └─ zombie  pos(0.00, 0.00, -3.00)  group:8192
+///  │  └─ pointer  pos(0.10, -0.10, -0.20)
+///  │     └─ pointerTip  pos(0.00, 0.00, -0.15)
+///  └─ npc  pos(0.00, 0.00, -3.00)  group:8192
 /// */
 ///
 /// // Golden-file style: record on first run, assert on subsequent runs.

@@ -1,6 +1,6 @@
 # Motion Testing — ImmersiveTesting v1.3
 
-Spatial motion is the hardest part of an immersive game to verify: entities warp to wrong positions, AI overshoots, and projectile arcs degrade silently. This guide covers all the motion-testing primitives added in v1.3.
+Spatial motion is the hardest part of an immersive scene to verify: entities warp to wrong positions, AI overshoots, and trajectories degrade silently. This guide covers all the motion-testing primitives added in v1.3.
 
 ---
 
@@ -13,7 +13,7 @@ The motion layer adds four collaborating types to `ImmersiveTestingRuntime` (saf
 | `MotionPath` | Runtime | Interpolatable pose sequence — the reference path |
 | `PathRecorder` | Runtime | Captures entity pose every tick for comparison |
 | `PathDrivenWorldTracking` | Runtime | Device walks a scripted path (WorldTrackingProviding) |
-| `PathDrivenHands` | Runtime | Gun tip follows a scripted path (HandTrackingProviding) |
+| `PathDrivenHands` | Runtime | Pointer tip follows a scripted path (HandTrackingProviding) |
 | `EntityPathDriver` | Runtime | Drives any entity along a path as a SystemStep |
 | `SpatialRegion` | Runtime | Named sphere/box/cylinder volume |
 | Motion assertions | Test-only | `XCTAssertFollowsPath`, `XCTAssertMaxSpeed`, etc. |
@@ -102,12 +102,12 @@ let transform  = route.transform(at: 1.5)   // as RealityKit Transform
 Attach to a `SystemHarness` as a step **after** all movement steps. Query `recordedPath` or `samples` once ticking is done.
 
 ```swift
-let zombie = scene["zombie"]!
-let recorder = PathRecorder(entity: zombie, clock: harness.clock)
+let npc = scene["npc"]!
+let recorder = PathRecorder(entity: npc, clock: harness.clock)
 
 // Register LAST so all movement steps have run before we sample.
 harness.registerStep("chase")  { … }
-harness.registerStep("attack") { … }
+harness.registerStep("react")  { … }
 harness.register(recorder.asStep())   // runs after the above
 
 harness.tick(frames: 270)  // 3 seconds at 90 Hz
@@ -128,17 +128,17 @@ XCTAssertPathLength(recorder, approximately: 12.0, within: 1.0)
 Instead of updating `FakeWorldTracking.position` every frame, use a `PathDrivenWorldTracking` so the device "walks" a pre-built path automatically. **Share the clock** — pass the same `FrameClock` to the harness and to this provider.
 
 ```swift
-let playerPath = MotionPath(from: [0, 1.6, 0]) {
+let devicePath = MotionPath(from: [0, 1.6, 0]) {
     PathSegment.move(to: [10, 1.6, 0], duration: 5.0)
     PathSegment.arc(center: [10, 1.6, 10], toAngle: .pi, radius: 10, duration: 6.0)
 }
 let clock = FrameClock()
-let worldTracking = PathDrivenWorldTracking(path: playerPath, clock: clock)
+let worldTracking = PathDrivenWorldTracking(path: devicePath, clock: clock)
 let env = CompositeSceneEnvironment(worldTracking: worldTracking)
 let harness = SystemHarness(scene: scene, clock: clock, environment: env)
 
 // Any step reading env.worldTracking.devicePosition() sees the device
-// automatically walking the playerPath as ticks advance.
+// automatically walking the devicePath as ticks advance.
 harness.registerStep("chase") { entities, dt, env in
     let target = env.worldTracking.devicePosition()
     …
@@ -148,9 +148,9 @@ harness.tick(frames: 990)  // 11 seconds
 
 ---
 
-## PathDrivenHands — scripted gun-tip sweep
+## PathDrivenHands — scripted pointer-tip sweep
 
-Use to test aiming systems without manually updating `ScriptedHands.gunTip` each frame. Only the gun-tip position follows the path; pinch distances stay fixed (mutate them to trigger shots at specific moments).
+Use to test interaction systems without manually updating `ScriptedHands.pointerTip` each frame. Only the pointer-tip position follows the path; pinch distances stay fixed (mutate them to trigger interactions at specific moments).
 
 ```swift
 let aimSweep = MotionPath.arc(
@@ -159,8 +159,8 @@ let aimSweep = MotionPath.arc(
     height: 1.5, duration: 2.0
 )
 let clock = FrameClock()
-let hands = PathDrivenHands(gunPath: aimSweep, clock: clock)
-hands.rightPinchDistance = 0.04  // pinch closed → shooting
+let hands = PathDrivenHands(pointerPath: aimSweep, clock: clock)
+hands.rightPinchDistance = 0.04  // pinch closed → interaction active
 
 let env = CompositeSceneEnvironment(hands: hands)
 let harness = SystemHarness(scene: scene, clock: clock, environment: env)
@@ -177,12 +177,12 @@ let patrolRoute = MotionPath.waypoints(
     [[0,0,0],[8,0,0],[8,0,8],[0,0,8]], duration: 4.0
 )
 let clock = FrameClock()
-let driver = EntityPathDriver(entity: zombie, path: patrolRoute, clock: clock)
+let driver = EntityPathDriver(entity: npc, path: patrolRoute, clock: clock)
 
 // Register the driver FIRST so reaction steps see the updated position.
 harness.register(driver.asStep())
-harness.registerStep("attack") { … }
-let recorder = PathRecorder(entity: zombie, clock: clock)
+harness.registerStep("react") { … }
+let recorder = PathRecorder(entity: npc, clock: clock)
 harness.register(recorder.asStep())
 ```
 
@@ -199,7 +199,7 @@ let column   = SpatialRegion.cylinder(center: .zero, radius: 5,
                                        halfHeight: .infinity, name: "XZ circle")
 
 // Point check
-arena.contains(zombie.position(relativeTo: nil))
+arena.contains(npc.position(relativeTo: nil))
 
 // All-points check
 arena.containsAll(positions)
@@ -261,8 +261,8 @@ Single entity or all entities of a component type lie inside a `SpatialRegion`.
 
 ```swift
 let arena = SpatialRegion.sphere(center: .zero, radius: 10, name: "arena")
-XCTAssertEntity(zombie, within: arena)
-XCTAssertAllEntities(ZombieComponent.self, in: scene.root, within: arena)
+XCTAssertEntity(npc, within: arena)
+XCTAssertAllEntities(NPCComponent.self, in: scene.root, within: arena)
 ```
 
 ---
@@ -277,10 +277,10 @@ let arena = SpatialRegion.sphere(center: .zero, radius: 10, name: "arena")
 let invariants = SceneInvariantSet {
     SceneInvariant.noNaNTransforms
     SceneInvariant.aboveFloor(minY: -0.05)   // small tolerance
-    SceneInvariant.withinRegion("zombies in arena", region: arena) { root in
-        root.entities(with: ZombieComponent.self)
+    SceneInvariant.withinRegion("npcs in arena", region: arena) { root in
+        root.entities(with: NPCComponent.self)
     }
-    SceneInvariant.component(ZombieComponent.self, staysWithin: arena)
+    SceneInvariant.component(NPCComponent.self, staysWithin: arena)
 }
 
 harness.tick(frames: 600, invariants: invariants)
@@ -289,33 +289,33 @@ harness.tick(frames: 600, invariants: invariants)
 
 ---
 
-## Complete example: zombie chases a walking player
+## Complete example: NPC chases a walking device
 
 ```swift
 @MainActor
-func testZombieChasesWalkingPlayer() {
-    // Player walks a straight path, then curves around a corner.
-    let playerPath = MotionPath(from: [0, 1.6, 0]) {
+func testNPCChasesWalkingDevice() {
+    // Device walks a straight path, then curves around a corner.
+    let devicePath = MotionPath(from: [0, 1.6, 0]) {
         PathSegment.move(to: [8, 1.6, 0], duration: 4.0)
         PathSegment.arc(center: [8, 1.6, 5], toAngle: .pi / 2,
                         radius: 5, duration: 3.0)
     }
 
     let clock = FrameClock()
-    let worldTracking = PathDrivenWorldTracking(path: playerPath, clock: clock)
+    let worldTracking = PathDrivenWorldTracking(path: devicePath, clock: clock)
     let env = CompositeSceneEnvironment(worldTracking: worldTracking)
 
-    let zombie = Entity("zombie")
-    zombie.position = [0, 0, 0]
-    let scene = TestScene { zombie }
+    let npc = Entity("npc")
+    npc.position = [0, 0, 0]
+    let scene = TestScene { npc }
 
-    let recorder = PathRecorder(entity: zombie, clock: clock)
+    let recorder = PathRecorder(entity: npc, clock: clock)
     let harness = SystemHarness(scene: scene, clock: clock, environment: env)
     let arena = SpatialRegion.box(center: [6, 0, 3], size: [20, 5, 20], name: "level")
 
     harness.registerStep("chase") { entities, dt, env in
         let target = env.worldTracking.devicePosition()
-        for e in entities where e.name == "zombie" {
+        for e in entities where e.name == "npc" {
             let dir = target - e.position
             guard length(dir) > 0.05 else { continue }
             e.position += normalize(dir) * 2.5 * dt   // 2.5 m/s
@@ -328,11 +328,11 @@ func testZombieChasesWalkingPlayer() {
         SceneInvariant.aboveFloor(minY: -0.1)
     })
 
-    // Zombie kept up with the player.
-    XCTAssertGreaterThan(zombie.position.x, 5.0)
+    // NPC kept up with the device.
+    XCTAssertGreaterThan(npc.position.x, 5.0)
     XCTAssertMaxSpeed(recorder, lessThan: 3.0)
     XCTAssertSmoothMotion(recorder, maxSpeedChangePerFrame: 0.5)
-    XCTAssertEntity(zombie, within: arena)
+    XCTAssertEntity(npc, within: arena)
 }
 ```
 

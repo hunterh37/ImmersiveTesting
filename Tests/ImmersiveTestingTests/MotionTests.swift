@@ -324,27 +324,27 @@ final class PathDrivenWorldTrackingTests: XCTestCase {
     }
 
     func testIntegratesWithHarnessChaseStep() {
-        let playerPath = MotionPath.linear(from: [0, 1.6, 0], to: [10, 1.6, 0], duration: 5.0)
+        let devicePath = MotionPath.linear(from: [0, 1.6, 0], to: [10, 1.6, 0], duration: 5.0)
         let clock = FrameClock(deltaTime: 1.0 / 90)
-        let worldTracking = PathDrivenWorldTracking(path: playerPath, clock: clock)
+        let worldTracking = PathDrivenWorldTracking(path: devicePath, clock: clock)
         let env = CompositeSceneEnvironment(worldTracking: worldTracking)
 
-        let zombie = Entity("zombie")
-        zombie.position = [0, 0, 0]
-        let scene = TestScene { zombie }
+        let npc = Entity("npc")
+        npc.position = [0, 0, 0]
+        let scene = TestScene { npc }
         let harness = SystemHarness(scene: scene, clock: clock, environment: env)
 
         harness.registerStep("chase") { entities, dt, env in
             let target = env.worldTracking.devicePosition()
-            for e in entities where e.name == "zombie" {
+            for e in entities where e.name == "npc" {
                 let dir = target - e.position
                 guard length(dir) > 0.01 else { continue }
-                e.position += normalize(dir) * 2.0 * dt  // 2 m/s zombie
+                e.position += normalize(dir) * 2.0 * dt  // 2 m/s
             }
         }
 
         harness.tick(frames: 90 * 5)  // 5 seconds
-        XCTAssertGreaterThan(zombie.position.x, 5.0, "zombie should have chased the moving device")
+        XCTAssertGreaterThan(npc.position.x, 5.0, "npc should have chased the moving device")
     }
 }
 
@@ -353,22 +353,22 @@ final class PathDrivenWorldTrackingTests: XCTestCase {
 @MainActor
 final class PathDrivenHandsTests: XCTestCase {
 
-    func testGunTipFollowsPath() {
+    func testPointerTipFollowsPath() {
         let path = MotionPath.linear(from: [0, 1.5, -3], to: [1, 1.5, -3], duration: 2.0)
         let clock = FrameClock(deltaTime: 1.0)
-        let hands = PathDrivenHands(gunPath: path, clock: clock)
+        let hands = PathDrivenHands(pointerPath: path, clock: clock)
 
-        XCTAssertEqual(hands.gunTipTransform().translation.x, 0, accuracy: 1e-4)
+        XCTAssertEqual(hands.pointerTipTransform().translation.x, 0, accuracy: 1e-4)
         clock.tick()
-        XCTAssertEqual(hands.gunTipTransform().translation.x, 0.5, accuracy: 0.01)
+        XCTAssertEqual(hands.pointerTipTransform().translation.x, 0.5, accuracy: 0.01)
         clock.tick()
-        XCTAssertEqual(hands.gunTipTransform().translation.x, 1.0, accuracy: 0.01)
+        XCTAssertEqual(hands.pointerTipTransform().translation.x, 1.0, accuracy: 0.01)
     }
 
     func testPinchDistancesAreFixed() {
         let path = MotionPath.linear(from: .zero, to: [1, 0, 0], duration: 1.0)
         let clock = FrameClock()
-        let hands = PathDrivenHands(gunPath: path, clock: clock,
+        let hands = PathDrivenHands(pointerPath: path, clock: clock,
                                     rightPinchDistance: 0.04, leftPinchDistance: 0.5)
         XCTAssertTrue(hands.isRightPinching())
         XCTAssertFalse(hands.isLeftPinching())
@@ -525,7 +525,6 @@ final class MotionAssertionPassTests: XCTestCase {
         let recorder = PathRecorder(entity: entity, clock: clock)
         for (t, pos) in pairs {
             entity.position = pos
-            // Manually drive the clock to desired time then record
             while Float(clock.time) < t { clock.tick() }
             recorder.record()
         }
@@ -666,22 +665,21 @@ final class CannedInvariantTests: XCTestCase {
 @MainActor
 final class MotionIntegrationTests: XCTestCase {
 
-    /// Classic game test: zombie chases a player who walks a scripted path.
-    func testZombieChasesPathDrivenDevice() {
-        let playerPath = MotionPath.linear(from: [0, 1.6, 0], to: [10, 1.6, 0], duration: 5.0)
+    func testNPCChasesPathDrivenDevice() {
+        let devicePath = MotionPath.linear(from: [0, 1.6, 0], to: [10, 1.6, 0], duration: 5.0)
         let clock = FrameClock(deltaTime: 1.0 / 90)
-        let worldTracking = PathDrivenWorldTracking(path: playerPath, clock: clock)
+        let worldTracking = PathDrivenWorldTracking(path: devicePath, clock: clock)
         let env = CompositeSceneEnvironment(worldTracking: worldTracking)
 
-        let zombie = Entity("zombie")
-        zombie.position = [0, 0, 0]
-        let scene = TestScene { zombie }
-        let recorder = PathRecorder(entity: zombie, clock: clock)
+        let npc = Entity("npc")
+        npc.position = [0, 0, 0]
+        let scene = TestScene { npc }
+        let recorder = PathRecorder(entity: npc, clock: clock)
         let harness = SystemHarness(scene: scene, clock: clock, environment: env)
 
         harness.registerStep("chase") { entities, dt, env in
             let target = env.worldTracking.devicePosition()
-            for e in entities where e.name == "zombie" {
+            for e in entities where e.name == "npc" {
                 let dir = target - e.position
                 guard length(dir) > 0.05 else { continue }
                 e.position += normalize(dir) * 2.0 * dt
@@ -695,10 +693,10 @@ final class MotionIntegrationTests: XCTestCase {
             SceneInvariant.aboveFloor(minY: -0.5)
         })
 
-        // Zombie should have moved meaningfully toward player.
-        XCTAssertGreaterThan(zombie.position.x, 5.0)
+        // NPC should have moved meaningfully toward device.
+        XCTAssertGreaterThan(npc.position.x, 5.0)
         XCTAssertMaxSpeed(recorder, lessThan: 3.0)       // no teleports
-        XCTAssertEntity(zombie, within: arena)            // stayed in bounds
+        XCTAssertEntity(npc, within: arena)               // stayed in bounds
     }
 
     /// Patrol-route test: entity follows a looping waypoint path via EntityPathDriver.
@@ -723,32 +721,32 @@ final class MotionIntegrationTests: XCTestCase {
         XCTAssertEntity(entity, within: zone)
     }
 
-    /// Aiming test: gun tip sweeps an arc path, bullets update to match.
-    func testBulletFollowsPathDrivenGunTip() {
+    /// Aiming test: pointer tip sweeps an arc path, objects update to match.
+    func testObjectFollowsPathDrivenPointerTip() {
         let sweep = MotionPath.arc(
             center: [0, 1.5, -3], radius: 1.0,
             startAngle: -.pi / 4, endAngle: .pi / 4,
             height: 1.5, duration: 2.0
         )
         let clock = FrameClock(deltaTime: 1.0 / 90)
-        let hands = PathDrivenHands(gunPath: sweep, clock: clock, rightPinchDistance: 0.04)
+        let hands = PathDrivenHands(pointerPath: sweep, clock: clock, rightPinchDistance: 0.04)
         let env = CompositeSceneEnvironment(hands: hands)
 
-        let bullet = Entity("bullet")
-        let scene = TestScene { bullet }
-        let recorder = PathRecorder(entity: bullet, clock: clock)
+        let sphere = Entity("sphere")
+        let scene = TestScene { sphere }
+        let recorder = PathRecorder(entity: sphere, clock: clock)
         let harness = SystemHarness(scene: scene, clock: clock, environment: env)
 
         harness.registerStep("track-tip") { entities, dt, env in
-            let tip = env.hands.gunTipTransform()
-            for e in entities where e.name == "bullet" {
+            let tip = env.hands.pointerTipTransform()
+            for e in entities where e.name == "sphere" {
                 e.position = tip.translation
             }
         }
         harness.register(recorder.asStep())
         harness.tick(frames: 180)
 
-        // Bullet should have swept meaningfully across the arc.
+        // Sphere should have swept meaningfully across the arc.
         XCTAssertGreaterThan(recorder.recordedPath.totalDistance, 0.1)
         XCTAssertMaxSpeed(recorder, lessThan: 5.0)
     }
