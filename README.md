@@ -1,15 +1,35 @@
 # ImmersiveTesting
 
-Unit-test immersive visionOS / RealityKit content **without a headset**. Spatial
-assertions, a headless scene-builder DSL, deterministic ECS system simulation, and
-declarative scene-state verification for `ImmersiveView`-style scenes.
+A test framework for immersive visionOS / RealityKit apps — built so that **coding agents
+can verify and fix spatial 3D code without a headset**. It gives an agent two things it
+otherwise can't have: a way to *assert* on a RealityKit scene headlessly, and a way to
+*see* one.
 
-> Built on the insight that `Entity`, `Transform`, and most `Component`s instantiate fine
-> in a plain `XCTest` — so the entity graph you assert against is exactly what RealityKit
-> holds at runtime. Runs on macOS CI for fast logic tests.
+### The three most important features
 
-To visually inspect a RealityKit scene, see **[docs/RENDER-CAPTURE.md](docs/RENDER-CAPTURE.md)** —
-edit one file, run one command, get a PNG.
+**1. Agents can snapshot RealityKit code and look at it.** A coding agent can edit one
+`Scene.swift` file, run `swift run ImmersiveCaptureApp`, and get back a real Metal-rendered
+PNG of the scene — which it can then read, evaluate, and iterate on inside an agentic loop.
+This closes the perception gap: the agent isn't editing 3D code blind, it's looking at the
+result and fixing it. See **[docs/RENDER-CAPTURE.md](docs/RENDER-CAPTURE.md)**.
+
+**2. Headless, deterministic scene testing on macOS CI.** `Entity`, `Transform`, and most
+`Component`s instantiate fine in a plain `XCTest`, so the entity graph you assert against is
+exactly what RealityKit holds at runtime. You get spatial assertions, a scene-builder DSL,
+deterministic ECS system simulation, frame-level invariants, and declarative scene-state
+verification — all running fast on CI with no simulator and no device.
+
+**3. Game architecture + dependency injection make immersive code testable at all.** The
+hard part of testing an immersive app isn't the assertions — it's that scene logic is
+usually tangled into the `RealityView` closure and reaches for `.shared` singletons and live
+ARKit. ImmersiveTesting is designed around a layered architecture (thin view shell →
+`SceneBuilder` + ECS systems → provider-protocol services) where runtime dependencies are
+injected through a `SceneEnvironment`. Adopt that structure and *both* an agent and a human
+can drive real scene code with deterministic fakes. **This is the foundation the other two
+features rely on — see the architecture guide below.**
+
+> Built on the insight that the entity graph constructs identically in a headless `XCTest`
+> and on-device, so logic verified in CI is the logic that ships.
 
 See [`docs/VISIONOS-TESTING-NOTES.md`](docs/VISIONOS-TESTING-NOTES.md) for gotchas
 (`@MainActor` everywhere, hostless vs hosted test bundles, the immersive-app sim-shell crash,
@@ -159,9 +179,10 @@ func testRoundOneSpawnsCorrectNPCCount() {
 
 ### 3. Extract system logic into static methods
 
-RealityKit `System.update(context:)` is not constructible headlessly. Extract the logic into
-a static function that your real `System` delegates to. The static function is what you
-register with `SystemHarness` in tests.
+`SceneUpdateContext` has no public initializer — RealityKit constructs it internally and
+passes it to `update(context:)`. You can never call that method directly from a test on any
+platform. The fix is to extract the core logic into a static method that your real `System`
+delegates to. That static method is what `SystemHarness` drives in tests.
 
 ```swift
 // In your app target:
@@ -343,7 +364,7 @@ MyGame/
 |------|-----|
 | `ImmersiveView` creates the env + calls `makeScene` — nothing else | keeps the shell replaceable without touching logic |
 | `SceneBuilder.build` is a pure `(Config, env) → Entity` | makes the builder unit-testable headlessly |
-| Systems expose `static step(entities:dt:env:)` | decouples logic from `SceneUpdateContext` |
+| Systems expose `static step(entities:dt:env:)` | `SceneUpdateContext` has no public init — you can't call `update(context:)` from a test |
 | All `.shared` / ARKit calls live in `Live*` adapters | one seam per service — swap for a fake in tests |
 | `ViewModel` receives env via init, defaults to `.fake()` | `GameViewModel()` in a test needs zero setup |
 | Tests use `SeededRandom` | layout failures replay byte-for-byte; no flakes |

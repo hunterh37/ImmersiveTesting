@@ -4,10 +4,9 @@ import RealityKit
 
 /// A named, closure-based simulation step — the testable stand-in for a RealityKit `System`.
 ///
-/// Because `SceneUpdateContext` is not publicly constructible, real `System` subclasses
-/// cannot be driven directly in headless tests. Instead, extract your system's core logic
-/// into a free function or static method that takes `(entities: [Entity], deltaTime: Float)`
-/// and register that here.
+/// `SceneUpdateContext` has no public initializer — RealityKit constructs it internally.
+/// You cannot call `System.update(context:)` directly from a test on any platform. Instead,
+/// extract your system's core logic into a static method and register that here.
 ///
 /// **Blessed pattern** — put the heavy lifting in a static method your `System` delegates to:
 /// ```swift
