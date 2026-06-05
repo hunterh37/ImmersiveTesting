@@ -1,0 +1,40 @@
+name: RenderHarnessExample
+options:
+  bundleIdPrefix: com.immersive-testing
+  deploymentTarget:
+    iOS: "18.0"
+  xcodeVersion: "16.0"
+
+packages:
+  ImmersiveTesting:
+    path: ../..
+
+targets:
+
+  RenderHarnessExample:
+    type: application
+    platform: iOS
+    sources:
+      - path: App
+    settings:
+      base:
+        SWIFT_VERSION: "6.0"
+        PRODUCT_BUNDLE_IDENTIFIER: com.immersive-testing.example
+        TARGETED_DEVICE_FAMILY: "1,2"
+        INFOPLIST_FILE: App/Info.plist
+
+  RenderHarnessExampleTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: Tests
+    dependencies:
+      - target: RenderHarnessExample
+      - package: ImmersiveTesting
+        product: ImmersiveTestingRenderer
+    settings:
+      base:
+        SWIFT_VERSION: "6.0"
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/RenderHarnessExample.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/RenderHarnessExample"
+        BUNDLE_LOADER: "$(TEST_HOST)"

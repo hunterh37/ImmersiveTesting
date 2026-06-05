@@ -8,6 +8,9 @@ declarative scene-state verification for `ImmersiveView`-style scenes.
 > in a plain `XCTest` — so the entity graph you assert against is exactly what RealityKit
 > holds at runtime. Runs on macOS CI for fast logic tests.
 
+To visually inspect a RealityKit scene, see **[docs/RENDER-CAPTURE.md](docs/RENDER-CAPTURE.md)** —
+edit one file, run one command, get a PNG.
+
 See [`docs/VISIONOS-TESTING-NOTES.md`](docs/VISIONOS-TESTING-NOTES.md) for gotchas
 (`@MainActor` everywhere, hostless vs hosted test bundles, the immersive-app sim-shell crash,
 name-lookup rules).
@@ -19,6 +22,336 @@ name-lookup rules).
 // or
 .package(url: "https://github.com/<you>/ImmersiveTesting.git", from: "1.1.0")
 ```
+
+---
+
+## Architecture guide — testable visionOS games
+
+This section explains how to structure a visionOS RealityKit game so every layer is
+independently testable headlessly on macOS CI. The patterns below are what ImmersiveTesting
+is designed around; adopting them is what makes the assertion and simulation APIs pay off.
+
+### The three-layer model
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  SwiftUI / ImmersiveView  (thin shell — no logic)       │
+│  • creates the SceneEnvironment with live adapters      │
+│  • calls SceneBuilder.makeScene(config:env:)            │
+│  • passes root into RealityView                         │
+└───────────────────┬─────────────────────────────────────┘
+                    │ Entity root
+┌───────────────────▼─────────────────────────────────────┐
+│  Scene layer  (SceneBuilder + ECS Systems)              │
+│  • SceneBuilder: pure (Config, SceneEnvironment)→Entity │
+│  • Systems: static step(entities:dt:env:) pure logic    │
+│  • ViewModel drives state transitions on the root       │
+└───────────────────┬─────────────────────────────────────┘
+                    │ provider protocols
+┌───────────────────▼─────────────────────────────────────┐
+│  Services layer  (SceneEnvironment)                     │
+│  • Live*  adapters in the app  (ARKit / .shared calls)  │
+│  • Fake*  / Scripted*  in tests (deterministic, fast)   │
+└─────────────────────────────────────────────────────────┘
+```
+
+**Rule of thumb:** if a type imports `ARKit` or calls `.shared`, it belongs in the services
+layer and gets hidden behind a provider protocol. Everything above that line must be
+constructible on macOS without a headset.
+
+---
+
+### 1. Keep ImmersiveView as a thin shell
+
+`ImmersiveView` / `RealityView` should do nothing except wire the layers together. All
+logic, all state, all entity construction lives elsewhere.
+
+```swift
+// ✅ Good — ImmersiveView is a thin shell
+struct GameImmersiveView: View {
+    @StateObject private var viewModel = GameViewModel()
+
+    var body: some View {
+        RealityView { content in
+            let env = CompositeSceneEnvironment(
+                worldTracking: LiveWorldTracking(),
+                sceneEffects:  LiveSceneEffects(),
+                hands:         LiveHands()
+            )
+            let scene = GameSceneBuilder().makeScene(viewModel.config, env: env)
+            content.add(scene.root)
+            viewModel.sceneRoot = scene.root
+        }
+    }
+}
+
+// ❌ Bad — business logic + singleton calls directly in the view
+struct GameImmersiveView: View {
+    var body: some View {
+        RealityView { content in
+            let pos = WorldTrackingManager.shared.getOriginFromDeviceTransform()
+            let npc = Entity("npc")
+            npc.position = pos + SIMD3(Float.random(in: -3...3), 0, -3)
+            content.add(npc)
+        }
+    }
+}
+```
+
+---
+
+### 2. Extract scene construction into a `SceneBuilder`
+
+A `SceneBuilder` is a pure function: given a config value and a `SceneEnvironment`, it
+returns an entity graph. No singleton access, no `ARKit` imports, no stored mutable state.
+
+```swift
+struct GameSceneBuilder: SceneBuilder {
+    struct Config {
+        var round: Int
+        var npcCount: Int
+        var difficulty: Difficulty
+    }
+
+    func build(_ config: Config, env: any SceneEnvironment) -> Entity {
+        let root = Entity("sceneRoot")
+
+        // ✅ All runtime-dependent reads go through env
+        let devicePos = env.worldTracking.devicePosition()
+
+        let avatar = Entity("avatar")
+        avatar.position = devicePos + SIMD3(0, 0, -1.5)
+        avatar.components.set(VitalComponent(lives: 3))
+        root.addChild(avatar)
+
+        for i in 0..<config.npcCount {
+            // ✅ Seeded random → deterministic in tests, different each run in production
+            let offset = env.random.unitVectorXZ() * Float(3 + config.difficulty.spawnRadius)
+            let npc = Entity("npc_\(i)")
+            npc.position = devicePos + offset
+            npc.components.set(NPCTag())
+            npc.components.set(NPCAIComponent(target: avatar))
+            root.addChild(npc)
+        }
+
+        return root
+    }
+}
+```
+
+Because `build` is pure, the test just provides a fake environment and asserts the graph:
+
+```swift
+@MainActor
+func testRoundOneSpawnsCorrectNPCCount() {
+    let env = CompositeSceneEnvironment(random: SeededRandom(seed: 1))
+    let scene = GameSceneBuilder().makeScene(.init(round: 1, npcCount: 5, difficulty: .normal), env: env)
+
+    SceneStateSpec("round-1") {
+        Requires(exactly: 5, matching: .hasComponent(NPCTag.self))
+        Requires(entityNamed: "avatar")
+        Requires(atLeast: 1, matching: .hasComponent(NPCAIComponent.self))
+    }.assert(against: scene.root)
+}
+```
+
+---
+
+### 3. Extract system logic into static methods
+
+RealityKit `System.update(context:)` is not constructible headlessly. Extract the logic into
+a static function that your real `System` delegates to. The static function is what you
+register with `SystemHarness` in tests.
+
+```swift
+// In your app target:
+struct NPCAISystem: System {
+    required init(scene: RealityKit.Scene) {}
+
+    func update(context: SceneUpdateContext) {
+        let entities = context.scene.performQuery(Self.query).map { $0 }
+        NPCAISystem.step(entities: entities, dt: Float(context.deltaTime), env: GameEnvironment.shared)
+    }
+
+    static let query = EntityQuery(where: .has(NPCTag.self))
+
+    // ✅ This is what tests drive — no SceneUpdateContext, no scene query
+    static func step(entities: [Entity], dt: Float, env: any SceneEnvironment) {
+        let target = env.worldTracking.devicePosition()
+        for npc in entities {
+            guard var ai = npc.components[NPCAIComponent.self] else { continue }
+            let direction = normalize(target - npc.position)
+            npc.position += direction * ai.speed * dt
+        }
+    }
+}
+
+// In your test target:
+func testNPCsChaseDevice() {
+    let world = FakeWorldTracking()
+    world.position = [5, 1.6, 0]
+    let env = CompositeSceneEnvironment(worldTracking: world, random: SeededRandom(seed: 42))
+
+    let scene = GameSceneBuilder().makeScene(.init(round: 1, npcCount: 3, difficulty: .normal), env: env)
+    let harness = SystemHarness(scene: scene, environment: env)
+    harness.registerStep("npc-ai") { entities, dt, env in
+        NPCAISystem.step(entities: Array(entities), dt: dt, env: env)
+    }
+
+    harness.tick(frames: 90, invariants: SceneInvariantSet { SceneInvariant.noNaNTransforms })
+
+    // All NPCs moved toward x=5
+    for npc in scene.root.children where npc.components[NPCTag.self] != nil {
+        XCTAssertLessThan(npc.position.x, 5)
+    }
+}
+```
+
+---
+
+### 4. Hide singleton / ARKit calls behind provider protocols
+
+Every call to a `.shared` singleton or ARKit type is a seam that blocks testing. Wrap them
+in the provider protocols so tests can substitute a fake.
+
+```swift
+// In your app — thin adapters over the real managers:
+final class LiveWorldTracking: WorldTrackingProviding {
+    func devicePosition() -> SIMD3<Float> {
+        guard let t = WorldTrackingManager.shared.getOriginFromDeviceTransform() else {
+            return .zero
+        }
+        return t.columns.3.xyz
+    }
+    func deviceTransform() -> simd_float4x4 {
+        WorldTrackingManager.shared.getOriginFromDeviceTransform() ?? .init(diagonal: .one)
+    }
+}
+
+final class LiveSceneEffects: SceneEffectsProviding {
+    func startEffect(named name: String) {
+        SceneReconstructionManager.shared.startEffect(named: name)
+    }
+    func stopEffect(named name: String) {
+        SceneReconstructionManager.shared.stopEffect(named: name)
+    }
+}
+
+final class LiveHands: HandTrackingProviding {
+    var leftPinchDistance: Float  { HandGestureModel.shared.leftPinchDistance }
+    var rightPinchDistance: Float { HandGestureModel.shared.rightPinchDistance }
+    var rightPointerTip: simd_float4x4? { HandGestureModel.shared.rightPointerTip }
+}
+```
+
+Production builds wire the live adapters once, at the `ImmersiveView` layer:
+
+```swift
+// Singleton for production — never accessed in builders or systems directly
+extension GameEnvironment {
+    static let live = CompositeSceneEnvironment(
+        worldTracking: LiveWorldTracking(),
+        sceneEffects:  LiveSceneEffects(),
+        hands:         LiveHands()
+    )
+}
+```
+
+---
+
+### 5. Use `ViewModel` for state transitions, not layout
+
+`ViewModel` owns the game-state machine (menus, round progression, pause, game-over). It
+operates on the *root entity* it was handed — it doesn't construct the scene itself.
+
+```swift
+@MainActor
+final class GameViewModel: ObservableObject {
+    @Published var state: GameState = .menu
+    var sceneRoot: Entity?
+
+    func startRound(_ config: GameSceneBuilder.Config) {
+        state = .playing(round: config.round)
+        sceneRoot?.findEntity(named: "mainMenuPanel")?.isEnabled = false
+        sceneRoot?.findEntity(named: "objectiveAnchor")?.isEnabled = true
+        // Trigger effects through the environment, not a singleton:
+        env.sceneEffects.startEffect(named: "roundStart")
+    }
+
+    private let env: any SceneEnvironment
+
+    init(env: any SceneEnvironment = .fake()) {
+        self.env = env        // ✅ default to fake so test init needs no arguments
+    }
+}
+```
+
+Testing state transitions needs only a `TestScene` and the fake environment:
+
+```swift
+@MainActor
+func testStartRoundHidesMenu() {
+    let scene = TestScene {
+        Entity("mainMenuPanel")
+        Entity("objectiveAnchor").disabled()
+    }
+    let vm = GameViewModel()
+    vm.sceneRoot = scene.root
+
+    vm.startRound(.init(round: 1, npcCount: 3, difficulty: .normal))
+
+    XCTAssertDisabled(scene["mainMenuPanel"]!)
+    XCTAssertEnabled(scene["objectiveAnchor"]!)
+}
+```
+
+---
+
+### 6. Test file layout
+
+```
+MyGame/
+├── Sources/
+│   └── MyGame/
+│       ├── Views/
+│       │   └── GameImmersiveView.swift      ← thin shell only
+│       ├── Scene/
+│       │   ├── GameSceneBuilder.swift       ← SceneBuilder conformance
+│       │   ├── NPCAISystem.swift            ← System + static step(...)
+│       │   └── Components/
+│       │       ├── NPCTag.swift
+│       │       └── VitalComponent.swift
+│       ├── ViewModel/
+│       │   └── GameViewModel.swift          ← state machine
+│       └── Services/
+│           ├── LiveWorldTracking.swift      ← adapters over .shared
+│           ├── LiveSceneEffects.swift
+│           └── LiveHands.swift
+└── Tests/
+    └── MyGameTests/
+        ├── SceneBuilderTests.swift          ← entity graph shape & count
+        ├── SystemTests.swift               ← per-frame simulation
+        ├── ViewModelTests.swift            ← state transition assertions
+        └── InvariantTests.swift            ← frame-level invariants
+```
+
+---
+
+### Best practices at a glance
+
+| Rule | Why |
+|------|-----|
+| `ImmersiveView` creates the env + calls `makeScene` — nothing else | keeps the shell replaceable without touching logic |
+| `SceneBuilder.build` is a pure `(Config, env) → Entity` | makes the builder unit-testable headlessly |
+| Systems expose `static step(entities:dt:env:)` | decouples logic from `SceneUpdateContext` |
+| All `.shared` / ARKit calls live in `Live*` adapters | one seam per service — swap for a fake in tests |
+| `ViewModel` receives env via init, defaults to `.fake()` | `GameViewModel()` in a test needs zero setup |
+| Tests use `SeededRandom` | layout failures replay byte-for-byte; no flakes |
+| Test suite runs hostless on macOS | no simulator required, fast CI |
+
+For the full DI API reference see **[docs/DEPENDENCY-INJECTION.md](docs/DEPENDENCY-INJECTION.md)**.
+For `@MainActor` gotchas, hostless vs hosted test bundles, and simulator crash avoidance see
+**[docs/VISIONOS-TESTING-NOTES.md](docs/VISIONOS-TESTING-NOTES.md)**.
 
 ---
 
@@ -241,4 +574,6 @@ collision-group registry contract without running physics.
   [docs/DEPENDENCY-INJECTION.md](docs/DEPENDENCY-INJECTION.md).
 - **v1.3** Record a real ARKit session on-device → replay deterministically in CI
   (provider protocols are the seam this plugs into)
-- **later** Offscreen render snapshot product (Metal surface required, GPU-flaky — deferred)
+- ✅ **v1.3** `ImmersiveCaptureApp` — macOS capture tool: edit `Scene.swift`, run
+  `swift run ImmersiveCaptureApp`, read the PNG. Real Metal rendering via ScreenCaptureKit.
+  See [docs/RENDER-CAPTURE.md](docs/RENDER-CAPTURE.md).
