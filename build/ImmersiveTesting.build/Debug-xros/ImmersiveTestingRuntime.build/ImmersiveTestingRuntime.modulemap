@@ -1,4 +1,0 @@
-module ImmersiveTestingRuntime {
-header "ImmersiveTestingRuntime-Swift.h"
-export *
-}
