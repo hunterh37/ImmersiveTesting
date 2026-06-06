@@ -8,10 +8,11 @@ otherwise can't have: a way to *assert* on a RealityKit scene headlessly, and a 
 ### The three most important features
 
 **1. Agents can snapshot RealityKit code and look at it.** A coding agent can edit one
-`Scene.swift` file, run `swift run ImmersiveCaptureApp`, and get back a real Metal-rendered
-PNG of the scene — which it can then read, evaluate, and iterate on inside an agentic loop.
-This closes the perception gap: the agent isn't editing 3D code blind, it's looking at the
-result and fixing it. See **[docs/RENDER-CAPTURE.md](docs/RENDER-CAPTURE.md)**.
+`Scene.swift` file, run `swift run ImmersiveCaptureApp`, and get back a fully rendered PNG
+of the RealityView scene — entities, materials, lighting and all. The agent reads the image,
+evaluates it, and iterates inside an agentic loop. This closes the perception gap: the agent
+isn't editing 3D code blind, it's looking at the result and fixing it.
+See **[docs/RENDER-CAPTURE.md](docs/RENDER-CAPTURE.md)**.
 
 **2. Headless, deterministic scene testing on macOS CI.** `Entity`, `Transform`, and most
 `Component`s instantiate fine in a plain `XCTest`, so the entity graph you assert against is

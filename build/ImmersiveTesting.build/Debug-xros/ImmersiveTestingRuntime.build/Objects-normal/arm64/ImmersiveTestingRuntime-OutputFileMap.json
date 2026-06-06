@@ -1,0 +1,129 @@
+{
+  "" : {
+    "diagnostics" : "/Users/hunter/Dev/ImmersiveTesting/build/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/ImmersiveTestingRuntime-primary.dia",
+    "emit-module-dependencies" : "/Users/hunter/Dev/ImmersiveTesting/build/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/ImmersiveTestingRuntime-primary-emit-module.d",
+    "emit-module-diagnostics" : "/Users/hunter/Dev/ImmersiveTesting/build/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/ImmersiveTestingRuntime-primary-emit-module.dia",
+    "pch" : "/Users/hunter/Dev/ImmersiveTesting/build/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/ImmersiveTestingRuntime-primary-Bridging-header.pch",
+    "swift-dependencies" : "/Users/hunter/Dev/ImmersiveTesting/build/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/ImmersiveTestingRuntime-primary.swiftdeps"
+  },
+  "/Users/hunter/Dev/ImmersiveTesting/Sources/ImmersiveTestingRuntime/Environment/Fakes.swift" : {
+    "const-values" : "/Users/hunter/Dev/ImmersiveTesting/build/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/Fakes.swiftconstvalues",
+    "dependencies" : "/Users/hunter/Dev/ImmersiveTesting/build/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/Fakes.d",
+    "diagnostics" : "/Users/hunter/Dev/ImmersiveTesting/build/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/Fakes.dia",
+    "index-unit-output-path" : "/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/Fakes.o",
+    "llvm-bc" : "/Users/hunter/Dev/ImmersiveTesting/build/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/Fakes.bc",
+    "object" : "/Users/hunter/Dev/ImmersiveTesting/build/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/Fakes.o",
+    "swift-dependencies" : "/Users/hunter/Dev/ImmersiveTesting/build/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/Fakes.swiftdeps",
+    "swiftmodule" : "/Users/hunter/Dev/ImmersiveTesting/build/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/Fakes~partial.swiftmodule"
+  },
+  "/Users/hunter/Dev/ImmersiveTesting/Sources/ImmersiveTestingRuntime/Environment/Providers.swift" : {
+    "const-values" : "/Users/hunter/Dev/ImmersiveTesting/build/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/Providers.swiftconstvalues",
+    "dependencies" : "/Users/hunter/Dev/ImmersiveTesting/build/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/Providers.d",
+    "diagnostics" : "/Users/hunter/Dev/ImmersiveTesting/build/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/Providers.dia",
+    "index-unit-output-path" : "/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/Providers.o",
+    "llvm-bc" : "/Users/hunter/Dev/ImmersiveTesting/build/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/Providers.bc",
+    "object" : "/Users/hunter/Dev/ImmersiveTesting/build/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/Providers.o",
+    "swift-dependencies" : "/Users/hunter/Dev/ImmersiveTesting/build/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/Providers.swiftdeps",
+    "swiftmodule" : "/Users/hunter/Dev/ImmersiveTesting/build/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/Providers~partial.swiftmodule"
+  },
+  "/Users/hunter/Dev/ImmersiveTesting/Sources/ImmersiveTestingRuntime/Environment/SceneEnvironment.swift" : {
+    "const-values" : "/Users/hunter/Dev/ImmersiveTesting/build/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/SceneEnvironment.swiftconstvalues",
+    "dependencies" : "/Users/hunter/Dev/ImmersiveTesting/build/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/SceneEnvironment.d",
+    "diagnostics" : "/Users/hunter/Dev/ImmersiveTesting/build/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/SceneEnvironment.dia",
+    "index-unit-output-path" : "/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/SceneEnvironment.o",
+    "llvm-bc" : "/Users/hunter/Dev/ImmersiveTesting/build/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/SceneEnvironment.bc",
+    "object" : "/Users/hunter/Dev/ImmersiveTesting/build/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/SceneEnvironment.o",
+    "swift-dependencies" : "/Users/hunter/Dev/ImmersiveTesting/build/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/SceneEnvironment.swiftdeps",
+    "swiftmodule" : "/Users/hunter/Dev/ImmersiveTesting/build/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/SceneEnvironment~partial.swiftmodule"
+  },
+  "/Users/hunter/Dev/ImmersiveTesting/Sources/ImmersiveTestingRuntime/Harness/FrameClock.swift" : {
+    "const-values" : "/Users/hunter/Dev/ImmersiveTesting/build/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/FrameClock.swiftconstvalues",
+    "dependencies" : "/Users/hunter/Dev/ImmersiveTesting/build/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/FrameClock.d",
+    "diagnostics" : "/Users/hunter/Dev/ImmersiveTesting/build/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/FrameClock.dia",
+    "index-unit-output-path" : "/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/FrameClock.o",
+    "llvm-bc" : "/Users/hunter/Dev/ImmersiveTesting/build/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/FrameClock.bc",
+    "object" : "/Users/hunter/Dev/ImmersiveTesting/build/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/FrameClock.o",
+    "swift-dependencies" : "/Users/hunter/Dev/ImmersiveTesting/build/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/FrameClock.swiftdeps",
+    "swiftmodule" : "/Users/hunter/Dev/ImmersiveTesting/build/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/FrameClock~partial.swiftmodule"
+  },
+  "/Users/hunter/Dev/ImmersiveTesting/Sources/ImmersiveTestingRuntime/Harness/SystemStep.swift" : {
+    "const-values" : "/Users/hunter/Dev/ImmersiveTesting/build/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/SystemStep.swiftconstvalues",
+    "dependencies" : "/Users/hunter/Dev/ImmersiveTesting/build/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/SystemStep.d",
+    "diagnostics" : "/Users/hunter/Dev/ImmersiveTesting/build/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/SystemStep.dia",
+    "index-unit-output-path" : "/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/SystemStep.o",
+    "llvm-bc" : "/Users/hunter/Dev/ImmersiveTesting/build/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/SystemStep.bc",
+    "object" : "/Users/hunter/Dev/ImmersiveTesting/build/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/SystemStep.o",
+    "swift-dependencies" : "/Users/hunter/Dev/ImmersiveTesting/build/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/SystemStep.swiftdeps",
+    "swiftmodule" : "/Users/hunter/Dev/ImmersiveTesting/build/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/SystemStep~partial.swiftmodule"
+  },
+  "/Users/hunter/Dev/ImmersiveTesting/Sources/ImmersiveTestingRuntime/Motion/MotionPath.swift" : {
+    "const-values" : "/Users/hunter/Dev/ImmersiveTesting/build/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/MotionPath.swiftconstvalues",
+    "dependencies" : "/Users/hunter/Dev/ImmersiveTesting/build/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/MotionPath.d",
+    "diagnostics" : "/Users/hunter/Dev/ImmersiveTesting/build/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/MotionPath.dia",
+    "index-unit-output-path" : "/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/MotionPath.o",
+    "llvm-bc" : "/Users/hunter/Dev/ImmersiveTesting/build/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/MotionPath.bc",
+    "object" : "/Users/hunter/Dev/ImmersiveTesting/build/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/MotionPath.o",
+    "swift-dependencies" : "/Users/hunter/Dev/ImmersiveTesting/build/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/MotionPath.swiftdeps",
+    "swiftmodule" : "/Users/hunter/Dev/ImmersiveTesting/build/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/MotionPath~partial.swiftmodule"
+  },
+  "/Users/hunter/Dev/ImmersiveTesting/Sources/ImmersiveTestingRuntime/Motion/PathPlayer.swift" : {
+    "const-values" : "/Users/hunter/Dev/ImmersiveTesting/build/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/PathPlayer.swiftconstvalues",
+    "dependencies" : "/Users/hunter/Dev/ImmersiveTesting/build/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/PathPlayer.d",
+    "diagnostics" : "/Users/hunter/Dev/ImmersiveTesting/build/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/PathPlayer.dia",
+    "index-unit-output-path" : "/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/PathPlayer.o",
+    "llvm-bc" : "/Users/hunter/Dev/ImmersiveTesting/build/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/PathPlayer.bc",
+    "object" : "/Users/hunter/Dev/ImmersiveTesting/build/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/PathPlayer.o",
+    "swift-dependencies" : "/Users/hunter/Dev/ImmersiveTesting/build/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/PathPlayer.swiftdeps",
+    "swiftmodule" : "/Users/hunter/Dev/ImmersiveTesting/build/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/PathPlayer~partial.swiftmodule"
+  },
+  "/Users/hunter/Dev/ImmersiveTesting/Sources/ImmersiveTestingRuntime/Motion/PathRecorder.swift" : {
+    "const-values" : "/Users/hunter/Dev/ImmersiveTesting/build/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/PathRecorder.swiftconstvalues",
+    "dependencies" : "/Users/hunter/Dev/ImmersiveTesting/build/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/PathRecorder.d",
+    "diagnostics" : "/Users/hunter/Dev/ImmersiveTesting/build/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/PathRecorder.dia",
+    "index-unit-output-path" : "/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/PathRecorder.o",
+    "llvm-bc" : "/Users/hunter/Dev/ImmersiveTesting/build/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/PathRecorder.bc",
+    "object" : "/Users/hunter/Dev/ImmersiveTesting/build/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/PathRecorder.o",
+    "swift-dependencies" : "/Users/hunter/Dev/ImmersiveTesting/build/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/PathRecorder.swiftdeps",
+    "swiftmodule" : "/Users/hunter/Dev/ImmersiveTesting/build/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/PathRecorder~partial.swiftmodule"
+  },
+  "/Users/hunter/Dev/ImmersiveTesting/Sources/ImmersiveTestingRuntime/SceneBuilder/SceneBuilder.swift" : {
+    "const-values" : "/Users/hunter/Dev/ImmersiveTesting/build/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/SceneBuilder.swiftconstvalues",
+    "dependencies" : "/Users/hunter/Dev/ImmersiveTesting/build/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/SceneBuilder.d",
+    "diagnostics" : "/Users/hunter/Dev/ImmersiveTesting/build/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/SceneBuilder.dia",
+    "index-unit-output-path" : "/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/SceneBuilder.o",
+    "llvm-bc" : "/Users/hunter/Dev/ImmersiveTesting/build/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/SceneBuilder.bc",
+    "object" : "/Users/hunter/Dev/ImmersiveTesting/build/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/SceneBuilder.o",
+    "swift-dependencies" : "/Users/hunter/Dev/ImmersiveTesting/build/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/SceneBuilder.swiftdeps",
+    "swiftmodule" : "/Users/hunter/Dev/ImmersiveTesting/build/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/SceneBuilder~partial.swiftmodule"
+  },
+  "/Users/hunter/Dev/ImmersiveTesting/Sources/ImmersiveTestingRuntime/SceneBuilder/TestScene.swift" : {
+    "const-values" : "/Users/hunter/Dev/ImmersiveTesting/build/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/TestScene.swiftconstvalues",
+    "dependencies" : "/Users/hunter/Dev/ImmersiveTesting/build/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/TestScene.d",
+    "diagnostics" : "/Users/hunter/Dev/ImmersiveTesting/build/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/TestScene.dia",
+    "index-unit-output-path" : "/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/TestScene.o",
+    "llvm-bc" : "/Users/hunter/Dev/ImmersiveTesting/build/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/TestScene.bc",
+    "object" : "/Users/hunter/Dev/ImmersiveTesting/build/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/TestScene.o",
+    "swift-dependencies" : "/Users/hunter/Dev/ImmersiveTesting/build/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/TestScene.swiftdeps",
+    "swiftmodule" : "/Users/hunter/Dev/ImmersiveTesting/build/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/TestScene~partial.swiftmodule"
+  },
+  "/Users/hunter/Dev/ImmersiveTesting/Sources/ImmersiveTestingRuntime/Spatial/SpatialRegion.swift" : {
+    "const-values" : "/Users/hunter/Dev/ImmersiveTesting/build/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/SpatialRegion.swiftconstvalues",
+    "dependencies" : "/Users/hunter/Dev/ImmersiveTesting/build/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/SpatialRegion.d",
+    "diagnostics" : "/Users/hunter/Dev/ImmersiveTesting/build/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/SpatialRegion.dia",
+    "index-unit-output-path" : "/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/SpatialRegion.o",
+    "llvm-bc" : "/Users/hunter/Dev/ImmersiveTesting/build/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/SpatialRegion.bc",
+    "object" : "/Users/hunter/Dev/ImmersiveTesting/build/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/SpatialRegion.o",
+    "swift-dependencies" : "/Users/hunter/Dev/ImmersiveTesting/build/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/SpatialRegion.swiftdeps",
+    "swiftmodule" : "/Users/hunter/Dev/ImmersiveTesting/build/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/SpatialRegion~partial.swiftmodule"
+  },
+  "/Users/hunter/Dev/ImmersiveTesting/Sources/ImmersiveTestingRuntime/Support.swift" : {
+    "const-values" : "/Users/hunter/Dev/ImmersiveTesting/build/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/Support.swiftconstvalues",
+    "dependencies" : "/Users/hunter/Dev/ImmersiveTesting/build/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/Support.d",
+    "diagnostics" : "/Users/hunter/Dev/ImmersiveTesting/build/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/Support.dia",
+    "index-unit-output-path" : "/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/Support.o",
+    "llvm-bc" : "/Users/hunter/Dev/ImmersiveTesting/build/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/Support.bc",
+    "object" : "/Users/hunter/Dev/ImmersiveTesting/build/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/Support.o",
+    "swift-dependencies" : "/Users/hunter/Dev/ImmersiveTesting/build/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/Support.swiftdeps",
+    "swiftmodule" : "/Users/hunter/Dev/ImmersiveTesting/build/ImmersiveTesting.build/Debug-xros/ImmersiveTestingRuntime.build/Objects-normal/arm64/Support~partial.swiftmodule"
+  }
+}

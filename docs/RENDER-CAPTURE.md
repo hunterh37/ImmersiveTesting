@@ -1,9 +1,9 @@
 # Render Capture — Visual Testing for RealityKit Scenes
 
-`ImmersiveCaptureApp` is a macOS helper that renders any `RealityView` scene on a real Metal
-surface and captures the result as a PNG. Coding agents use it to see what a RealityKit scene
-actually looks like — without a headset, without an iOS Simulator, and without any screen
-recording permission.
+`ImmersiveCaptureApp` is a macOS helper that renders any `RealityView` scene in a live window
+and captures it as a PNG. Coding agents use it to see exactly what a RealityKit scene looks
+like — entities, materials, lighting — without a headset, without an iOS Simulator, and
+without any screen recording permission.
 
 ---
 
@@ -67,12 +67,12 @@ swift run ImmersiveCaptureApp --size 1024 --settle 3.0
 
 ## How it works
 
-1. A macOS `NSWindow` is created and shown on screen with your `RealityView` content.
-2. The process waits `--settle` seconds — this lets RealityKit boot its Metal renderer,
-   load mesh/material assets, and drive a few frames.
-3. `SCScreenshotManager.captureImage` (ScreenCaptureKit) captures the window including its
-   Metal framebuffer. No Screen Recording permission is required because the capture target
-   is the app's own window.
+1. A macOS `NSWindow` is created and shown on screen hosting your `RealityView` content.
+2. The process waits `--settle` seconds — enough for RealityKit to load mesh/material assets
+   and drive the scene to a stable rendered state.
+3. `SCScreenshotManager.captureImage` (ScreenCaptureKit) captures the composited window.
+   No Screen Recording permission is required — ScreenCaptureKit can always capture your
+   own app's windows.
 4. The PNG is written to `--output`, the path is printed to stdout, and the app exits.
 
 Total runtime is roughly `--settle` + ~0.5 s overhead.
