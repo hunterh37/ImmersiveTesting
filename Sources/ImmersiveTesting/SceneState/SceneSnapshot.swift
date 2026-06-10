@@ -158,20 +158,27 @@ public struct SceneSnapshot {
             changes.append("  ~ \(path): collisionGroup \(baseline.collisionGroup.map(String.init) ?? "nil") → \(current.collisionGroup.map(String.init) ?? "nil")")
         }
 
-        // Children added
-        let currentNames  = Set(current.children.map(\.name))
-        let baselineNames = Set(baseline.children.map(\.name))
-        for added in currentNames.subtracting(baselineNames) {
-            changes.append("  + \(path)/\(added): added")
-        }
-        for removed in baselineNames.subtracting(currentNames) {
-            changes.append("  - \(path)/\(removed): removed")
+        // Pair children by name in order, treating same-named siblings as a multiset so
+        // duplicate names (e.g. two "hitbox" colliders) are diffed and counted correctly
+        // rather than collapsed into a single Set entry.
+        var baselineByName: [String: [SnapshotNode]] = [:]
+        for child in baseline.children { baselineByName[child.name, default: []].append(child) }
+
+        for currentChild in current.children {
+            guard var pool = baselineByName[currentChild.name], !pool.isEmpty else {
+                // No remaining baseline sibling with this name to pair with → added.
+                changes.append("  + \(path)/\(currentChild.name): added")
+                continue
+            }
+            let baselineChild = pool.removeFirst()
+            baselineByName[currentChild.name] = pool
+            diffNodes(currentChild, baseline: baselineChild, path: "\(path)/\(currentChild.name)", changes: &changes)
         }
 
-        // Recurse on common children (by name, first match)
-        for currentChild in current.children {
-            if let baselineChild = baseline.children.first(where: { $0.name == currentChild.name }) {
-                diffNodes(currentChild, baseline: baselineChild, path: "\(path)/\(currentChild.name)", changes: &changes)
+        // Any baseline children left unpaired were removed.
+        for leftovers in baselineByName.values {
+            for removed in leftovers {
+                changes.append("  - \(path)/\(removed.name): removed")
             }
         }
     }

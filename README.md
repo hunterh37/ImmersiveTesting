@@ -41,7 +41,7 @@ name-lookup rules).
 ```swift
 .package(path: "../ImmersiveTesting")  // local
 // or
-.package(url: "https://github.com/<you>/ImmersiveTesting.git", from: "1.1.0")
+.package(url: "https://github.com/hunterh37/ImmersiveTesting.git", from: "1.3.0")
 ```
 
 ---

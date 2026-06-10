@@ -14,16 +14,24 @@ import simd
 /// ```
 public struct SpatialMapSymbols {
     var table: [String: Character] = [:]
+    /// Prefix → symbol rules, applied at lookup time when no exact name match exists.
+    /// Stored in registration order; the first matching prefix wins.
+    private var prefixRules: [(prefix: String, symbol: Character)] = []
     public init() {}
     public subscript(name: String) -> Character? {
-        get { table[name] }
+        get {
+            if let exact = table[name] { return exact }
+            return prefixRules.first { name.hasPrefix($0.prefix) }?.symbol
+        }
         set { table[name] = newValue }
     }
 
-    /// Registers all entity names matching a prefix with the same symbol.
-    /// Useful for `zombie_0`, `zombie_1`, … → `"Z"`.
+    /// Registers a prefix rule so any entity whose name starts with `prefix` renders with
+    /// `symbol`. Resolved lazily at lookup, so it matches entity names discovered later.
+    /// Useful for `zombie_0`, `zombie_1`, … → `"Z"`. Exact symbols set via subscript take
+    /// precedence over prefix rules.
     public mutating func register(prefix: String, symbol: Character) {
-        for (k, _) in table where k.hasPrefix(prefix) { table[k] = symbol }
+        prefixRules.append((prefix, symbol))
     }
 }
 

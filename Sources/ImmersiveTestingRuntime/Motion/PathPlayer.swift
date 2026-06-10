@@ -154,8 +154,11 @@ public final class EntityPathDriver {
         return SystemStep(stepName) { [weak self] _, _ in
             guard let self else { return }
             let (pos, rot) = self.path.pose(at: Float(self.clock.time))
-            self.entity.position = pos
-            if self.applyRotation { self.entity.orientation = rot }
+            // MotionPath poses are world-space; entity.position/.orientation are parent-relative.
+            // Write through the world-relative setters so a driven entity under a transformed
+            // parent lands on the path, matching this type's documented "world-space" contract.
+            self.entity.setPosition(pos, relativeTo: nil)
+            if self.applyRotation { self.entity.setOrientation(rot, relativeTo: nil) }
         }
     }
 }

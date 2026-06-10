@@ -84,9 +84,14 @@ public final class SystemHarness {
     /// Advances one frame: runs every registered step then ticks the clock.
     public func tick(invariants: SceneInvariantSet? = nil,
                      file: StaticString = #filePath, line: UInt = #line) {
-        let entities = ArraySlice(scene.root.allEntities)
         let dt = clock.dt
-        for step in steps { step.body(entities, dt, environment) }
+        // Re-read the live entity set for each step: a step that spawns or despawns
+        // entities must be reflected in the list later steps (and recorders) receive
+        // this same frame, not a stale snapshot captured before any step ran.
+        for step in steps {
+            let entities = ArraySlice(scene.root.allEntities)
+            step.body(entities, dt, environment)
+        }
         clock.tick()
         invariants?.check(scene.root, frame: clock.frame, file: file, line: line)
     }
