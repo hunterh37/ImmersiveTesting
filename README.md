@@ -5,36 +5,29 @@ can verify and fix spatial 3D code without a headset**. It gives an agent two th
 otherwise can't have: a way to *assert* on a RealityKit scene headlessly, and a way to
 *see* one.
 
-### The three most important features
+**1. Agents can snapshot RealityKit code and look at it.** Edit one `Scene.swift`, run
+`swift run ImmersiveCaptureApp`, and get back a fully rendered PNG of the RealityView
+scene — entities, materials, lighting and all. The agent reads the image and iterates
+inside an agentic loop instead of editing 3D code blind.
+See [docs/RENDER-CAPTURE.md](docs/RENDER-CAPTURE.md).
 
-**1. Agents can snapshot RealityKit code and look at it.** A coding agent can edit one
-`Scene.swift` file, run `swift run ImmersiveCaptureApp`, and get back a fully rendered PNG
-of the RealityView scene — entities, materials, lighting and all. The agent reads the image,
-evaluates it, and iterates inside an agentic loop. This closes the perception gap: the agent
-isn't editing 3D code blind, it's looking at the result and fixing it.
-See **[docs/RENDER-CAPTURE.md](docs/RENDER-CAPTURE.md)**.
+**2. Headless, deterministic scene testing on macOS CI.** RealityKit entities instantiate
+fine in a plain `XCTest`, so you assert against the same entity graph the app holds at
+runtime: spatial assertions, a scene-builder DSL, deterministic ECS simulation, and
+declarative scene-state specs — no simulator, no device.
 
-**2. Headless, deterministic scene testing on macOS CI.** `Entity`, `Transform`, and most
-`Component`s instantiate fine in a plain `XCTest`, so the entity graph you assert against is
-exactly what RealityKit holds at runtime. You get spatial assertions, a scene-builder DSL,
-deterministic ECS system simulation, frame-level invariants, and declarative scene-state
-verification — all running fast on CI with no simulator and no device.
-
-**3. Game architecture + dependency injection make immersive code testable at all.** The
-hard part of testing an immersive app isn't the assertions — it's that scene logic is
-usually tangled into the `RealityView` closure and reaches for `.shared` singletons and live
-ARKit. ImmersiveTesting is designed around a layered architecture (thin view shell →
-`SceneBuilder` + ECS systems → provider-protocol services) where runtime dependencies are
-injected through a `SceneEnvironment`. Adopt that structure and *both* an agent and a human
-can drive real scene code with deterministic fakes. **This is the foundation the other two
-features rely on — see the architecture guide below.**
+**3. An architecture that makes immersive code testable at all.** Scene logic is usually
+tangled into the `RealityView` closure and reaches for `.shared` singletons and live ARKit.
+ImmersiveTesting is designed around a layered architecture (thin view shell → `SceneBuilder`
++ ECS systems → provider-protocol services) where runtime dependencies are injected through
+a `SceneEnvironment`. This is the foundation the other two features rely on — see the
+[architecture guide](#architecture-guide--testable-visionos-games) below.
 
 > Built on the insight that the entity graph constructs identically in a headless `XCTest`
 > and on-device, so logic verified in CI is the logic that ships.
 
-See [`docs/VISIONOS-TESTING-NOTES.md`](docs/VISIONOS-TESTING-NOTES.md) for gotchas
-(`@MainActor` everywhere, hostless vs hosted test bundles, the immersive-app sim-shell crash,
-name-lookup rules).
+For gotchas (`@MainActor` everywhere, hostless vs hosted test bundles, the immersive-app
+sim-shell crash, name-lookup rules) see [docs/VISIONOS-TESTING-NOTES.md](docs/VISIONOS-TESTING-NOTES.md).
 
 ## Install
 
@@ -48,11 +41,8 @@ name-lookup rules).
 
 ## Architecture guide — testable visionOS games
 
-This section explains how to structure a visionOS RealityKit game so every layer is
-independently testable headlessly on macOS CI. The patterns below are what ImmersiveTesting
-is designed around; adopting them is what makes the assertion and simulation APIs pay off.
-
-### The three-layer model
+Structure the app in three layers; everything above the services line must be
+constructible on macOS without a headset.
 
 ```
 ┌─────────────────────────────────────────────────────────┐
@@ -77,18 +67,14 @@ is designed around; adopting them is what makes the assertion and simulation API
 ```
 
 **Rule of thumb:** if a type imports `ARKit` or calls `.shared`, it belongs in the services
-layer and gets hidden behind a provider protocol. Everything above that line must be
-constructible on macOS without a headset.
-
----
+layer behind a provider protocol.
 
 ### 1. Keep ImmersiveView as a thin shell
 
-`ImmersiveView` / `RealityView` should do nothing except wire the layers together. All
-logic, all state, all entity construction lives elsewhere.
+`ImmersiveView` / `RealityView` only wires the layers together — no logic, no state, no
+entity construction:
 
 ```swift
-// ✅ Good — ImmersiveView is a thin shell
 struct GameImmersiveView: View {
     @StateObject private var viewModel = GameViewModel()
 
@@ -105,62 +91,34 @@ struct GameImmersiveView: View {
         }
     }
 }
-
-// ❌ Bad — business logic + singleton calls directly in the view
-struct GameImmersiveView: View {
-    var body: some View {
-        RealityView { content in
-            let pos = WorldTrackingManager.shared.getOriginFromDeviceTransform()
-            let npc = Entity("npc")
-            npc.position = pos + SIMD3(Float.random(in: -3...3), 0, -3)
-            content.add(npc)
-        }
-    }
-}
 ```
-
----
 
 ### 2. Extract scene construction into a `SceneBuilder`
 
-A `SceneBuilder` is a pure function: given a config value and a `SceneEnvironment`, it
-returns an entity graph. No singleton access, no `ARKit` imports, no stored mutable state.
+A `SceneBuilder` is a pure function `(Config, SceneEnvironment) → Entity`. All
+runtime-dependent reads (device pose, randomness) go through `env`:
 
 ```swift
 struct GameSceneBuilder: SceneBuilder {
-    struct Config {
-        var round: Int
-        var npcCount: Int
-        var difficulty: Difficulty
-    }
+    struct Config { var round: Int; var npcCount: Int; var difficulty: Difficulty }
 
     func build(_ config: Config, env: any SceneEnvironment) -> Entity {
         let root = Entity("sceneRoot")
-
-        // ✅ All runtime-dependent reads go through env
         let devicePos = env.worldTracking.devicePosition()
 
-        let avatar = Entity("avatar")
-        avatar.position = devicePos + SIMD3(0, 0, -1.5)
-        avatar.components.set(VitalComponent(lives: 3))
-        root.addChild(avatar)
-
         for i in 0..<config.npcCount {
-            // ✅ Seeded random → deterministic in tests, different each run in production
             let offset = env.random.unitVectorXZ() * Float(3 + config.difficulty.spawnRadius)
             let npc = Entity("npc_\(i)")
             npc.position = devicePos + offset
             npc.components.set(NPCTag())
-            npc.components.set(NPCAIComponent(target: avatar))
             root.addChild(npc)
         }
-
         return root
     }
 }
 ```
 
-Because `build` is pure, the test just provides a fake environment and asserts the graph:
+Because `build` is pure, a test just provides a fake environment and asserts the graph:
 
 ```swift
 @MainActor
@@ -171,22 +129,17 @@ func testRoundOneSpawnsCorrectNPCCount() {
     SceneStateSpec("round-1") {
         Requires(exactly: 5, matching: .hasComponent(NPCTag.self))
         Requires(entityNamed: "avatar")
-        Requires(atLeast: 1, matching: .hasComponent(NPCAIComponent.self))
     }.assert(against: scene.root)
 }
 ```
 
----
-
 ### 3. Extract system logic into static methods
 
-`SceneUpdateContext` has no public initializer — RealityKit constructs it internally and
-passes it to `update(context:)`. You can never call that method directly from a test on any
-platform. The fix is to extract the core logic into a static method that your real `System`
-delegates to. That static method is what `SystemHarness` drives in tests.
+`SceneUpdateContext` has no public initializer, so `update(context:)` can never be called
+from a test. Extract the core logic into a static method the real `System` delegates to —
+that's what `SystemHarness` drives:
 
 ```swift
-// In your app target:
 struct NPCAISystem: System {
     required init(scene: RealityKit.Scene) {}
 
@@ -202,13 +155,13 @@ struct NPCAISystem: System {
         let target = env.worldTracking.devicePosition()
         for npc in entities {
             guard var ai = npc.components[NPCAIComponent.self] else { continue }
-            let direction = normalize(target - npc.position)
-            npc.position += direction * ai.speed * dt
+            npc.position += normalize(target - npc.position) * ai.speed * dt
         }
     }
 }
+```
 
-// In your test target:
+```swift
 func testNPCsChaseDevice() {
     let world = FakeWorldTracking()
     world.position = [5, 1.6, 0]
@@ -222,54 +175,24 @@ func testNPCsChaseDevice() {
 
     harness.tick(frames: 90, invariants: SceneInvariantSet { SceneInvariant.noNaNTransforms })
 
-    // All NPCs moved toward x=5
     for npc in scene.root.children where npc.components[NPCTag.self] != nil {
         XCTAssertLessThan(npc.position.x, 5)
     }
 }
 ```
 
----
-
 ### 4. Hide singleton / ARKit calls behind provider protocols
 
-Every call to a `.shared` singleton or ARKit type is a seam that blocks testing. Wrap them
-in the provider protocols so tests can substitute a fake.
+Wrap every `.shared` / ARKit call in a thin `Live*` adapter so tests can substitute a fake:
 
 ```swift
-// In your app — thin adapters over the real managers:
 final class LiveWorldTracking: WorldTrackingProviding {
     func devicePosition() -> SIMD3<Float> {
-        guard let t = WorldTrackingManager.shared.getOriginFromDeviceTransform() else {
-            return .zero
-        }
-        return t.columns.3.xyz
-    }
-    func deviceTransform() -> simd_float4x4 {
-        WorldTrackingManager.shared.getOriginFromDeviceTransform() ?? .init(diagonal: .one)
+        WorldTrackingManager.shared.getOriginFromDeviceTransform()?.columns.3.xyz ?? .zero
     }
 }
 
-final class LiveSceneEffects: SceneEffectsProviding {
-    func startEffect(named name: String) {
-        SceneReconstructionManager.shared.startEffect(named: name)
-    }
-    func stopEffect(named name: String) {
-        SceneReconstructionManager.shared.stopEffect(named: name)
-    }
-}
-
-final class LiveHands: HandTrackingProviding {
-    var leftPinchDistance: Float  { HandGestureModel.shared.leftPinchDistance }
-    var rightPinchDistance: Float { HandGestureModel.shared.rightPinchDistance }
-    var rightPointerTip: simd_float4x4? { HandGestureModel.shared.rightPointerTip }
-}
-```
-
-Production builds wire the live adapters once, at the `ImmersiveView` layer:
-
-```swift
-// Singleton for production — never accessed in builders or systems directly
+// Production wires the live adapters once, at the ImmersiveView layer:
 extension GameEnvironment {
     static let live = CompositeSceneEnvironment(
         worldTracking: LiveWorldTracking(),
@@ -279,36 +202,28 @@ extension GameEnvironment {
 }
 ```
 
----
-
 ### 5. Use `ViewModel` for state transitions, not layout
 
-`ViewModel` owns the game-state machine (menus, round progression, pause, game-over). It
-operates on the *root entity* it was handed — it doesn't construct the scene itself.
+`ViewModel` owns the game-state machine and operates on the root entity it was handed — it
+doesn't construct the scene. Inject the env via init, defaulting to `.fake()` so a test
+needs zero setup:
 
 ```swift
 @MainActor
 final class GameViewModel: ObservableObject {
     @Published var state: GameState = .menu
     var sceneRoot: Entity?
+    private let env: any SceneEnvironment
+
+    init(env: any SceneEnvironment = .fake()) { self.env = env }
 
     func startRound(_ config: GameSceneBuilder.Config) {
         state = .playing(round: config.round)
         sceneRoot?.findEntity(named: "mainMenuPanel")?.isEnabled = false
-        sceneRoot?.findEntity(named: "objectiveAnchor")?.isEnabled = true
-        // Trigger effects through the environment, not a singleton:
         env.sceneEffects.startEffect(named: "roundStart")
-    }
-
-    private let env: any SceneEnvironment
-
-    init(env: any SceneEnvironment = .fake()) {
-        self.env = env        // ✅ default to fake so test init needs no arguments
     }
 }
 ```
-
-Testing state transitions needs only a `TestScene` and the fake environment:
 
 ```swift
 @MainActor
@@ -323,41 +238,8 @@ func testStartRoundHidesMenu() {
     vm.startRound(.init(round: 1, npcCount: 3, difficulty: .normal))
 
     XCTAssertDisabled(scene["mainMenuPanel"]!)
-    XCTAssertEnabled(scene["objectiveAnchor"]!)
 }
 ```
-
----
-
-### 6. Test file layout
-
-```
-MyGame/
-├── Sources/
-│   └── MyGame/
-│       ├── Views/
-│       │   └── GameImmersiveView.swift      ← thin shell only
-│       ├── Scene/
-│       │   ├── GameSceneBuilder.swift       ← SceneBuilder conformance
-│       │   ├── NPCAISystem.swift            ← System + static step(...)
-│       │   └── Components/
-│       │       ├── NPCTag.swift
-│       │       └── VitalComponent.swift
-│       ├── ViewModel/
-│       │   └── GameViewModel.swift          ← state machine
-│       └── Services/
-│           ├── LiveWorldTracking.swift      ← adapters over .shared
-│           ├── LiveSceneEffects.swift
-│           └── LiveHands.swift
-└── Tests/
-    └── MyGameTests/
-        ├── SceneBuilderTests.swift          ← entity graph shape & count
-        ├── SystemTests.swift               ← per-frame simulation
-        ├── ViewModelTests.swift            ← state transition assertions
-        └── InvariantTests.swift            ← frame-level invariants
-```
-
----
 
 ### Best practices at a glance
 
@@ -371,25 +253,76 @@ MyGame/
 | Tests use `SeededRandom` | layout failures replay byte-for-byte; no flakes |
 | Test suite runs hostless on macOS | no simulator required, fast CI |
 
-For the full DI API reference see **[docs/DEPENDENCY-INJECTION.md](docs/DEPENDENCY-INJECTION.md)**.
-For `@MainActor` gotchas, hostless vs hosted test bundles, and simulator crash avoidance see
-**[docs/VISIONOS-TESTING-NOTES.md](docs/VISIONOS-TESTING-NOTES.md)**.
+For the full DI API reference see [docs/DEPENDENCY-INJECTION.md](docs/DEPENDENCY-INJECTION.md).
 
 ---
 
-## v1.2 — what's new
+## Core APIs
+
+### SceneStateSpec — declarative scene-state assertions
+
+Describe what the entity graph *must* look like in a given app state, then assert it. One
+spec call reports every requirement, not just the first failure:
+
+```swift
+SceneStateSpec("roundActive") {
+    Requires(entityNamed: "objectiveAnchor")
+    Requires(atLeast: 1, matching: .hasComponent(NPCAIComponent.self))
+    Forbids(entityNamed: "mainMenuPanel")
+    Expect(entityNamed: "avatar", "lives == 3") { entity in
+        entity.components[VitalComponent.self]?.lives == 3
+    }
+}.assert(against: scene.root)
+```
+
+```
+SceneStateSpec "roundActive" failed (2 violations):
+  ✗ requires entity "objectiveAnchor"                    — not found
+  ✗ forbids entity "mainMenuPanel"                      — present at /root/ui/mainMenuPanel
+  ✓ at least 1 has NPCAIComponent                      — found 3
+```
+
+### SystemHarness + FrameClock — deterministic ECS simulation
+
+Drive system steps frame-by-frame against a `TestScene` with deterministic time (default
+90 Hz). `SceneInvariantSet` conditions are checked *every frame*, so a run fails on the
+exact frame a property breaks:
+
+```swift
+let scene = TestScene { Entity("projectile").component(ProjectileComponent(velocity: [0, 0, -60])) }
+let harness = SystemHarness(scene: scene)
+
+harness.registerStep("motion") { entities, dt in
+    MotionSystem.step(entities: Array(entities), dt: dt)
+}
+
+let invariants = SceneInvariantSet {
+    SceneInvariant.noNaNTransforms
+    SceneInvariant.alwaysPresent(named: "avatar")
+    SceneInvariant.cap(ProjectileComponent.self, atMost: 50)
+    SceneInvariant("avatar never below floor") { root in
+        (root.findEntity(named: "avatar")?.worldPosition.y ?? 0) > -0.1
+    }
+}
+
+harness.tick(frames: 90, invariants: invariants)   // 1 second of simulated time
+XCTAssertPosition(scene["projectile"]!, near: [0, 0, -60], within: 0.5)
+
+// Or wait for a condition:
+harness.tickUntil("projectile past z=-30", maxFrames: 200) {
+    scene["projectile"]!.position.z < -30
+}
+```
 
 ### Dependency injection — drive real scenes headlessly
 
-Four provider protocols isolate the runtime services an immersive scene reaches for through
-singletons / live ARKit, each with a scriptable package fake. A `SceneEnvironment` bundles them
-and is injected into scene builders and system steps. See **[docs/DEPENDENCY-INJECTION.md](docs/DEPENDENCY-INJECTION.md)**.
+Provider protocols isolate the runtime services a scene reaches for, each with a
+scriptable fake. A `SceneEnvironment` bundles them and is injected into builders and
+system steps. Fakes can be mutated mid-simulation (e.g. move the device):
 
 ```swift
 let world = FakeWorldTracking()
 let env = CompositeSceneEnvironment(worldTracking: world, random: SeededRandom(seed: 42))
-
-// A production builder conforms to SceneBuilder → callable in tests with a fake env:
 let scene = SpawnSceneBuilder().makeScene(.init(round: 1, npcCount: 3), env: env)
 
 let harness = SystemHarness(scene: scene, environment: env)
@@ -413,141 +346,29 @@ harness.tick(frames: 90, invariants: SceneInvariantSet { SceneInvariant.noNaNTra
 | `SceneBuilder` | `build(_ config:, env:) -> Entity`; `makeScene(…)` wraps in a `TestScene` |
 | `TestScene(adopting:)` | Wrap a real builder's root for assertions |
 
-`SystemHarness` gained an `environment` and an env-aware `registerStep` overload; the old
-`(entities, dt)` overload is unchanged, so existing tests keep compiling.
-
-## v1.1 — what's new
-
-### SceneStateSpec — declarative scene-state assertions
-
-The headline feature. Describe what the entity graph *must* look like in a given app state,
-then assert it after the state transition. One spec call gives you a rich pass/fail summary
-listing every requirement, not just the first failure.
-
-```swift
-@MainActor
-final class RoundTests: XCTestCase {
-
-    func testStartingRoundConfiguresScene() {
-        let scene = TestScene {
-            Entity("avatar").position(0, 1.6, 0).component(VitalComponent(lives: 3))
-        }
-        let vm = ViewModel(scene: scene.root)
-        vm.startRound()
-
-        SceneStateSpec("roundActive") {
-            Requires(entityNamed: "objectiveAnchor")
-            Requires(atLeast: 1, matching: .hasComponent(NPCAIComponent.self))
-            Requires(exactly: 1, matching: .named("avatar"))
-            Forbids(entityNamed: "mainMenuPanel")
-            Expect(entityNamed: "avatar", "lives == 3") { entity in
-                entity.components[VitalComponent.self]?.lives == 3
-            }
-        }.assert(against: scene.root)
-    }
-}
-```
-
-**Failure output:**
-```
-SceneStateSpec "roundActive" failed (2 violations):
-  ✗ requires entity "objectiveAnchor"                    — not found
-  ✗ forbids entity "mainMenuPanel"                      — present at /root/ui/mainMenuPanel
-  ✓ at least 1 has NPCAIComponent                      — found 3
-  ✓ exactly 1 named "avatar"                            — found 1
-  ✓ avatar: lives == 3                                  — ✓
-```
-
-### SceneInvariantSet — frame-level invariants
-
-Conditions that must hold *every frame* of simulation. Pass to `SystemHarness.tick` to fail
-on the exact frame a property breaks, not after the run completes.
-
-```swift
-let invariants = SceneInvariantSet {
-    SceneInvariant.noNaNTransforms
-    SceneInvariant.alwaysPresent(named: "avatar")
-    SceneInvariant.neverPresent(named: "mainMenuPanel")
-    SceneInvariant.cap(ProjectileComponent.self, atMost: 50)
-    SceneInvariant("avatar never below floor") { root in
-        (root.findEntity(named: "avatar")?.worldPosition.y ?? 0) > -0.1
-    }
-}
-
-harness.tick(frames: 300, invariants: invariants)
-```
-
-### SystemHarness + FrameClock — deterministic ECS simulation
-
-Drive closure-based system steps frame-by-frame against a `TestScene`. Deterministic time,
-per-frame invariant checks, and a `tickUntil` helper for event-driven assertions.
-
-```swift
-let scene = TestScene { Entity("projectile").component(ProjectileComponent(velocity: [0, 0, -60])) }
-let harness = SystemHarness(scene: scene)   // default 90 Hz clock
-
-harness.registerStep("motion") { entities, dt in
-    for e in entities {
-        guard let proj = e.components[ProjectileComponent.self], !proj.hitRegistered else { continue }
-        e.position = e.position + proj.velocity * dt
-    }
-}
-
-harness.tick(frames: 90)   // 1 second of simulated time
-XCTAssertPosition(scene["projectile"]!, near: [0, 0, -60], within: 0.5)
-
-// Or wait for a condition:
-harness.tickUntil("projectile past z=-30", maxFrames: 200) {
-    scene["projectile"]!.position.z < -30
-}
-```
-
-**Blessed pattern for real `System`s** — extract the logic into a static method your `System`
-delegates to, then register that same method in the harness:
-
-```swift
-// In your app:
-struct MotionSystem: System {
-    func update(context: SceneUpdateContext) {
-        let entities = context.entities.compactMap { $0 as? Entity }
-        MotionSystem.step(entities: entities, dt: Float(context.deltaTime))
-    }
-    static func step(entities: [Entity], dt: Float) { /* pure logic */ }
-}
-
-// In your test:
-harness.registerStep("motion") { entities, dt in MotionSystem.step(entities: Array(entities), dt: dt) }
-```
-
 ### SceneSnapshot — structural diffing & tree dumps
 
-Capture the entity graph as a value type for debugging, golden-file regression, and
-pre/post state comparison.
+Capture the entity graph as a value type for golden-file regression and pre/post
+comparison:
 
 ```swift
 let before = SceneSnapshot(scene.root)
-
 viewModel.triggerExplosion()
+XCTAssertSnapshotsMatch(SceneSnapshot(scene.root), baseline: before)   // fails with diff
 
-let after = SceneSnapshot(scene.root)
-XCTAssertSnapshotsMatch(after, baseline: before)   // fails with diff on change
-
-// Or just print the tree for debugging:
 print(before.tree)
 /*
  root
  ├─ avatar  pos(0.00, 1.60, 0.00)
  └─ npc     pos(0.00, 0.00, -3.00)  group:8192
-    ├─ head  pos(0.00, 1.70, -3.00)  group:524288
-    └─ torso  pos(0.00, 1.10, -3.00)  group:524288
 */
 ```
 
 ---
 
-## Full assertion reference
+## Assertion reference
 
-### v0.1 — Spatial & component assertions
+### Spatial & component assertions
 
 | Category | Assertions |
 |----------|-----------|
@@ -562,27 +383,25 @@ Angle tolerances use `Angle` (`.degrees(15)` / `.radians(_:)`) — no raw-radian
 `XCTAssertCollides` reads `CollisionComponent.filter` (group ⊗ mask) so it verifies your
 collision-group registry contract without running physics.
 
-### v1.1 — Entity structure assertions
+### Entity structure assertions
 
 | Assertion | What it checks |
 |-----------|---------------|
 | `XCTAssertEntityName(_:_:)` | Resolves an optional entity and verifies its name |
 | `XCTAssertChildCount(_:_:)` | Exact direct child count |
-| `XCTAssertHasChildren(_:)` | Parent has at least one child |
-| `XCTAssertNoChildren(_:)` | Parent has zero children |
+| `XCTAssertHasChildren(_:)` / `XCTAssertNoChildren(_:)` | At least one / zero children |
 | `XCTAssertEnabled(_:)` / `XCTAssertDisabled(_:)` | `entity.isEnabled` |
 | `XCTAssertSubtreeSize(_:equals:)` | Total entity count in subtree (including root) |
 | `XCTAssertRoot(_:)` / `XCTAssertHasParent(_:)` | Presence / absence of a parent |
 
-### v1.1 — Scene-state API
+### Scene-state API
 
 | Type | Purpose |
 |------|---------|
 | `SceneStateSpec` | Declarative expectations; call `.assert(against:)` |
 | `SceneRequirement` | `Requires`, `Forbids`, `Expect`, `Requires(atLeast:)`, `Requires(exactly:)`, `Requires(atMost:)` |
 | `EntityPredicate` | `.hasComponent(_:)`, `.named(_:)`, `.satisfies(_:_:)` |
-| `SceneInvariantSet` | Set of invariants checked per frame |
-| `SceneInvariant` | Named condition on the root entity |
+| `SceneInvariantSet` / `SceneInvariant` | Per-frame invariants on the root entity |
 | `SceneSnapshot` | Structural tree capture; `snap.tree`, `XCTAssertSnapshotsMatch` |
 | `SystemHarness` | Drives simulation steps; `tick(frames:invariants:)`, `tickUntil` |
 | `FrameClock` | Deterministic time; `deltaTime`, `advance(frames:)`, `reset()` |
@@ -594,8 +413,8 @@ collision-group registry contract without running physics.
 - ✅ **v1.2** Dependency-injection layer — provider protocols, scriptable fakes,
   `SceneEnvironment`, `SceneBuilder`, env-aware `SystemHarness`. See
   [docs/DEPENDENCY-INJECTION.md](docs/DEPENDENCY-INJECTION.md).
-- **v1.3** Record a real ARKit session on-device → replay deterministically in CI
-  (provider protocols are the seam this plugs into)
 - ✅ **v1.3** `ImmersiveCaptureApp` — macOS capture tool: edit `Scene.swift`, run
-  `swift run ImmersiveCaptureApp`, read the PNG. Real Metal rendering via ScreenCaptureKit.
-  See [docs/RENDER-CAPTURE.md](docs/RENDER-CAPTURE.md).
+  `swift run ImmersiveCaptureApp`, read the PNG. Captures a real `RealityView`-rendered
+  scene. See [docs/RENDER-CAPTURE.md](docs/RENDER-CAPTURE.md).
+- **Next** Record a real ARKit session on-device → replay deterministically in CI
+  (provider protocols are the seam this plugs into).
