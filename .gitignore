@@ -2,5 +2,7 @@
 build/
 .swiftpm/
 *.xcodeproj
+!Examples/RenderHarnessExample/RenderHarnessExample.xcodeproj
+xcuserdata/
 .DS_Store
 Package.resolved
