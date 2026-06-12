@@ -81,6 +81,16 @@ extension Entity {
     }
 
     @discardableResult
+    public func enabled(_ isEnabled: Bool = true) -> Self {
+        self.isEnabled = isEnabled; return self
+    }
+
+    @discardableResult
+    public func disabled() -> Self {
+        enabled(false)
+    }
+
+    @discardableResult
     public func component<C: Component>(_ c: C) -> Self {
         components.set(c); return self
     }

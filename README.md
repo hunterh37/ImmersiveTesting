@@ -37,6 +37,15 @@ sim-shell crash, name-lookup rules) see [docs/VISIONOS-TESTING-NOTES.md](docs/VI
 .package(url: "https://github.com/hunterh37/ImmersiveTesting.git", from: "1.3.0")
 ```
 
+## Requirements
+
+- Swift 6 / Xcode 16 or newer
+- macOS 15, iOS 18, or visionOS 2
+- `ImmersiveTestingRuntime` is XCTest-free and can be linked from app targets.
+- `ImmersiveTesting` imports XCTest and should be used from test targets only.
+- `ImmersiveCaptureApp` and `ImmersiveTestingMCP` are optional agent/debugging tools; the
+  core assertion/runtime libraries do not require MCP.
+
 ---
 
 ## Architecture guide — testable visionOS games
@@ -48,7 +57,7 @@ constructible on macOS without a headset.
 ┌─────────────────────────────────────────────────────────┐
 │  SwiftUI / ImmersiveView  (thin shell — no logic)       │
 │  • creates the SceneEnvironment with live adapters      │
-│  • calls SceneBuilder.makeScene(config:env:)            │
+│  • calls SceneBuilder.makeScene(_:env:)                 │
 │  • passes root into RealityView                         │
 └───────────────────┬─────────────────────────────────────┘
                     │ Entity root

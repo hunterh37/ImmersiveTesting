@@ -28,7 +28,6 @@ final class RegressionTests: XCTestCase {
 
         harness.tick()
         // FIXED: later step in the SAME frame now sees the spawn (live entity set per step).
-        print("issue2: stepBSawSpawned=\(stepBSawSpawned)")
         XCTAssertTrue(stepBSawSpawned, "spawned entity must be visible to later step in same frame")
     }
 
@@ -52,7 +51,6 @@ final class RegressionTests: XCTestCase {
         XCTAssertEqual(current.entityCount, 2) // genuinely different
 
         let diff = current.diff(from: baseline)
-        print("issue3 diff: \(diff ?? "nil (NO CHANGE DETECTED)")")
         // FIXED: removal of a duplicate-named sibling is now reported.
         XCTAssertNotNil(diff, "diff must detect removal of a duplicate-named sibling")
         XCTAssertTrue(diff?.contains("removed") ?? false, "diff should name the removed child")
@@ -80,7 +78,6 @@ final class RegressionTests: XCTestCase {
 
         let recordedAngle = recorded.angle
         let worldAngle = worldOrientation.angle
-        print("issue4: recordedAngle=\(recordedAngle) worldAngle=\(worldAngle)")
 
         // World orientation is 90°, but recorder stored local (0°).
         XCTAssertEqual(recordedAngle, 0, accuracy: 1e-4, "recorder stored LOCAL rotation")
@@ -109,7 +106,6 @@ final class RegressionTests: XCTestCase {
         step.body(ArraySlice([child]), clock.dt, CompositeSceneEnvironment())
 
         let world = child.position(relativeTo: nil)
-        print("issue5: childWorld=\(world) (path target world=[5,0,0])")
         // FIXED: driver writes through world-relative setter, so child lands on the path
         // regardless of parent transform.
         XCTAssertEqual(world.x, 5, accuracy: 1e-4, "driver should place child at WORLD x=5")

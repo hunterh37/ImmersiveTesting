@@ -73,7 +73,7 @@ final class SystemHarnessTests: XCTestCase {
 
         harness.registerStep("motion") { entities, dt in
             for e in entities {
-                guard var proj = e.components[ProjectileComponent.self] else { continue }
+                guard let proj = e.components[ProjectileComponent.self] else { continue }
                 guard !proj.hitRegistered else { continue }
                 e.position = e.position + proj.velocity * dt
             }
@@ -136,7 +136,6 @@ final class SystemHarnessTests: XCTestCase {
         let scene = TestScene {
             Entity("p").component(ProjectileComponent(velocity: [0, 0, 0]))
         }
-        let harness = SystemHarness(scene: scene)
 
         // Invariant: projectile count must stay ≤ 5. We'll exceed it manually.
         let invariants = SceneInvariantSet {
@@ -491,6 +490,16 @@ final class EntityAssertionTests: XCTestCase {
         let entity = Entity("e")
         entity.isEnabled = false
         XCTAssertDisabled(entity)
+    }
+
+    func testFluentEnabledDisabledHelpers() {
+        let disabled = Entity("disabled").disabled()
+        let enabled = Entity("enabled").enabled()
+        let explicitlyDisabled = Entity("explicit").enabled(false)
+
+        XCTAssertFalse(disabled.isEnabled)
+        XCTAssertTrue(enabled.isEnabled)
+        XCTAssertFalse(explicitlyDisabled.isEnabled)
     }
 
     func testAssertSubtreeSize() {

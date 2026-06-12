@@ -245,6 +245,7 @@ extension SceneInvariant {
     }
 
     /// Every entity carrying `componentType` must remain within `region` at all times.
+    @MainActor
     public static func component<C: Component>(
         _ type: C.Type,
         staysWithin region: SpatialRegion
