@@ -1,30 +1,32 @@
 # ImmersiveTesting
 
-A test framework for immersive visionOS / RealityKit apps — built so that **coding agents
-can verify and fix spatial 3D code without a headset**. It gives an agent two things it
-otherwise can't have: a way to *assert* on a RealityKit scene headlessly, and a way to
-*see* one.
+A **scaffold for building immersive visionOS / RealityKit apps** — a layered architecture
+plus a small set of services that keep spatial 3D code clean instead of tangled into a
+`RealityView` closure. You build your app on the `Runtime` layer (`SceneBuilder`, ECS
+systems, a `SceneEnvironment` for injected services); RealityKit still does the heavy
+lifting — physics, rendering, collisions.
 
-**1. Agents can snapshot RealityKit code and look at it.** Edit one `Scene.swift`, run
-`swift run ImmersiveCaptureApp`, and get back a fully rendered PNG of the RealityView
-scene — entities, materials, lighting and all. The agent reads the image and iterates
-inside an agentic loop instead of editing 3D code blind.
-See [docs/RENDER-CAPTURE.md](docs/RENDER-CAPTURE.md).
+> **The name is historical.** The package grew out of a testing toolkit, but its job is to
+> be the *structure you build immersive apps on*. The headless-assertion and render-capture
+> tooling (below) are conveniences that fall out of that structure — not the point.
 
-**2. Headless, deterministic scene testing on macOS CI.** RealityKit entities instantiate
-fine in a plain `XCTest`, so you assert against the same entity graph the app holds at
-runtime: spatial assertions, a scene-builder DSL, deterministic ECS simulation, and
-declarative scene-state specs — no simulator, no device.
+**What it gives you:**
 
-**3. An architecture that makes immersive code testable at all.** Scene logic is usually
-tangled into the `RealityView` closure and reaches for `.shared` singletons and live ARKit.
-ImmersiveTesting is designed around a layered architecture (thin view shell → `SceneBuilder`
-+ ECS systems → provider-protocol services) where runtime dependencies are injected through
-a `SceneEnvironment`. This is the foundation the other two features rely on — see the
-[architecture guide](#architecture-guide--testable-visionos-games) below.
+**1. A clean app skeleton.** Three layers — thin `ImmersiveView` shell → `SceneBuilder` +
+systems → provider-protocol services behind a `SceneEnvironment`. Your scene construction,
+game logic, and ARKit/`.shared` calls each live in one place and stay swappable. See the
+[architecture guide](#architecture-guide--building-on-the-scaffold).
 
-> Built on the insight that the entity graph constructs identically in a headless `XCTest`
-> and on-device, so logic verified in CI is the logic that ships.
+**2. Real RealityKit physics — not hand-rolled math.** Motion, gravity, floors, and
+contacts are RealityKit's job: give entities `PhysicsBodyComponent` + `CollisionComponent`
+and let the engine solve them. The scaffold is about *structure and dependency injection*,
+**not** about replacing the physics engine. See [Use real physics](#use-real-physics).
+
+**3. You can see and check a scene without a headset.** Because the entity graph builds
+identically on macOS, you can render a scene to a PNG (`swift run ImmersiveCaptureApp`,
+[docs/RENDER-CAPTURE.md](docs/RENDER-CAPTURE.md)) and assert on its structure in a plain
+`XCTest`. Handy for CI and for coding agents iterating on spatial code — a *byproduct* of
+the layering, not its reason to exist.
 
 For gotchas (`@MainActor` everywhere, hostless vs hosted test bundles, the immersive-app
 sim-shell crash, name-lookup rules) see [docs/VISIONOS-TESTING-NOTES.md](docs/VISIONOS-TESTING-NOTES.md).
@@ -48,10 +50,12 @@ sim-shell crash, name-lookup rules) see [docs/VISIONOS-TESTING-NOTES.md](docs/VI
 
 ---
 
-## Architecture guide — testable visionOS games
+## Architecture guide — building on the scaffold
 
-Structure the app in three layers; everything above the services line must be
-constructible on macOS without a headset.
+Structure the app in three layers. The goal is *separation of concerns*: scene
+construction, frame logic, and platform services each live in one swappable place.
+(A pleasant side effect — everything above the services line is constructible on macOS
+without a headset, which is what makes the headless tooling work.)
 
 ```
 ┌─────────────────────────────────────────────────────────┐
@@ -77,6 +81,28 @@ constructible on macOS without a headset.
 
 **Rule of thumb:** if a type imports `ARKit` or calls `.shared`, it belongs in the services
 layer behind a provider protocol.
+
+### Use real physics
+
+The scaffold organizes your code; it does **not** replace RealityKit's simulation. For
+anything that moves, falls, rests on a surface, or collides, use the engine:
+
+- Give dynamic bodies a `PhysicsBodyComponent` + `CollisionComponent`; give floors/walls a
+  **static** `PhysicsBodyComponent` (`.static`) with a matching collider. RealityKit then
+  resolves gravity, contacts, and resting automatically — a blade *cannot* sink through a
+  floor that has a real collider.
+- Read/apply forces and impulses (`PhysicsMotionComponent`, `applyLinearImpulse`) rather
+  than integrating `position += velocity * dt` by hand.
+- Use `CollisionEvents` (or the `CollisionComponent.filter` group/mask) for hit detection.
+
+A `step(entities:dt:env:)` system is for **game logic** — AI, scoring, state transitions,
+spawning, tuning forces — *not* for re-implementing gravity and floor clamps. Hand-rolled
+motion is how you get bugs like objects clipping through meshes; let the solver own the
+solver's job.
+
+> The `static step` pattern below makes logic easy to reason about and to drive headlessly.
+> That's orthogonal to physics: your steps should *nudge the physics engine*, not stand in
+> for it.
 
 ### 1. Keep ImmersiveView as a thin shell
 
@@ -256,17 +282,22 @@ func testStartRoundHidesMenu() {
 |------|-----|
 | `ImmersiveView` creates the env + calls `makeScene` — nothing else | keeps the shell replaceable without touching logic |
 | `SceneBuilder.build` is a pure `(Config, env) → Entity` | makes the builder unit-testable headlessly |
-| Systems expose `static step(entities:dt:env:)` | `SceneUpdateContext` has no public init — you can't call `update(context:)` from a test |
-| All `.shared` / ARKit calls live in `Live*` adapters | one seam per service — swap for a fake in tests |
-| `ViewModel` receives env via init, defaults to `.fake()` | `GameViewModel()` in a test needs zero setup |
-| Tests use `SeededRandom` | layout failures replay byte-for-byte; no flakes |
-| Test suite runs hostless on macOS | no simulator required, fast CI |
+| Motion/collision use RealityKit physics components | the engine owns gravity, contacts, and resting — don't hand-roll them |
+| Systems expose `static step(entities:dt:env:)` for *logic* | keeps game/AI/state logic isolated and callable without a `SceneUpdateContext` |
+| All `.shared` / ARKit calls live in `Live*` adapters | one seam per service — swap the backend (or a fake) without touching logic |
+| `ViewModel` receives env via init, defaults to `.fake()` | trivially constructible in any context |
+| Use `SeededRandom` for procedural layout | runs replay byte-for-byte; deterministic spawns |
+| Scenes build headlessly on macOS | enables render capture + CI assertions, no simulator needed |
 
 For the full DI API reference see [docs/DEPENDENCY-INJECTION.md](docs/DEPENDENCY-INJECTION.md).
 
 ---
 
-## Core APIs
+## Verifying scenes headlessly
+
+Everything below is the optional verification layer (`import ImmersiveTesting`, test targets
+only). It exists because the scaffold builds scenes on macOS — use it for CI and agent
+loops, but none of it is required to *build* an app on the Runtime layer.
 
 ### SceneStateSpec — declarative scene-state assertions
 

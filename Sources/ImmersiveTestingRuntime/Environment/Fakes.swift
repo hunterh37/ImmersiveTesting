@@ -77,18 +77,23 @@ public final class ScriptedHands: HandTrackingProviding {
     public var rightPinchDistance: Float
     public var leftPinchDistance: Float
     public var pointerTip: Transform
+    /// Pose of the secondary (tool-holding) hand. Defaults to the pointer tip when unset.
+    public var secondaryTip: Transform?
 
     public init(
         rightPinchDistance: Float = 1.0,   // open by default
         leftPinchDistance: Float = 1.0,
-        pointerTip: Transform = Transform()
+        pointerTip: Transform = Transform(),
+        secondaryTip: Transform? = nil
     ) {
         self.rightPinchDistance = rightPinchDistance
         self.leftPinchDistance = leftPinchDistance
         self.pointerTip = pointerTip
+        self.secondaryTip = secondaryTip
     }
 
     public func pointerTipTransform() -> Transform { pointerTip }
+    public func secondaryTipTransform() -> Transform { secondaryTip ?? pointerTip }
 }
 
 // MARK: SeededRandom

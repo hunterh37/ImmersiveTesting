@@ -2,14 +2,15 @@ import RealityKit
 
 // MARK: - SceneEnvironment
 //
-// The injection container handed to scene builders and ECS system steps in place of
-// reaching for `.shared` singletons. It bundles the four runtime providers so a builder
-// signature stays small: `build(_ config:, env:)`.
+// The dependency-injection container handed to scene builders and ECS system steps in place
+// of reaching for `.shared` singletons. It bundles the runtime service providers (device
+// pose, scene effects, hands, randomness) so a builder signature stays small:
+// `build(_ config:, env:)`, and so each service has exactly one swap point.
 //
-// The same protocol serves both worlds:
-//   • Tests construct `CompositeSceneEnvironment()` (all fakes) and script the providers.
-//   • Production constructs `CompositeSceneEnvironment(worldTracking: liveAdapter, …)`
-//     where each adapter conforms the real `.shared` manager to the provider protocol.
+// Production wires live adapters: `CompositeSceneEnvironment(worldTracking: liveAdapter, …)`,
+// where each adapter conforms the real `.shared` manager to its provider protocol. The same
+// seam lets a test (or the headless renderer) substitute a scripted fake — but the primary
+// purpose is decoupling app logic from the platform, not mocking.
 
 /// Read access to the runtime services an immersive scene depends on.
 @MainActor

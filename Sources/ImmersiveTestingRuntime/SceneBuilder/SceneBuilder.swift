@@ -2,16 +2,16 @@ import RealityKit
 
 // MARK: - SceneBuilder
 //
-// The contract a production graph builder adopts so the same code that runs in the headset
-// can be exercised headlessly. Instead of constructing entities while reaching into
-// singletons and a live `Scene`, a builder is a pure function of `(Config, SceneEnvironment)`
-// returning a root `Entity`. Production calls it with a live environment; tests call it with
-// a fake one and assert the resulting graph.
+// The contract for the layer that constructs an immersive scene's entity graph. Instead of
+// building entities inline in a `RealityView` closure while reaching into singletons and a
+// live `Scene`, a builder is a function of `(Config, SceneEnvironment)` returning a root
+// `Entity`. Runtime dependencies (device pose, randomness) come through `env` rather than
+// `.shared`, so scene construction stays in one place and the services it uses are
+// swappable.
 //
-// This is the "swap point" the visionOS testing notes anticipate: once the app's
-// `SceneManager` (or a dedicated scene builder) conforms, a fixture stops
-// re-declaring stand-in components and calls the real builder — the assertions then guard
-// real construction logic.
+// Because construction doesn't touch a live `Scene`, the same builder also runs on macOS —
+// which is what lets the verification tooling render and assert on the graph. That's a
+// convenience, not the reason the type exists.
 
 /// Builds an immersive scene's entity graph deterministically from a configuration and an
 /// injected environment.

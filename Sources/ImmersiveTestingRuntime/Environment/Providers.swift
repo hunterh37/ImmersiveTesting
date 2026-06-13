@@ -56,9 +56,17 @@ public protocol HandTrackingProviding {
 
     /// World transform of the pointer tip (the origin from which interactions or objects spawn).
     func pointerTipTransform() -> Transform
+
+    /// World transform of the *other* (secondary) hand — e.g. the hand holding a two-handed
+    /// tool while the pointer hand pulls or interacts. Adapters that track only one hand can
+    /// rely on the default, which falls back to the pointer tip.
+    func secondaryTipTransform() -> Transform
 }
 
 public extension HandTrackingProviding {
+    /// Default: single-hand adapters reuse the pointer tip for the secondary hand.
+    func secondaryTipTransform() -> Transform { pointerTipTransform() }
+
     /// Whether the right hand is pinched past `threshold` (default 0.09 m).
     func isRightPinching(threshold: Float = 0.09) -> Bool { rightPinchDistance < threshold }
 
